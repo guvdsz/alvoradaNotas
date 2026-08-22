@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Alvorada Estoque
 
-## Getting Started
+Base web para o controle de estoque e movimentações do Empório Laticínios
+Alvorada.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 com App Router e TypeScript
+- React 19
+- Tailwind CSS 4
+- Supabase Auth e PostgreSQL
+- Zustand para estado global no cliente
+- React Hook Form + Zod para formulários e validação
+- Lucide React para ícones
+
+## Executar localmente
 
 ```bash
+npm install
+copy .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Preencha o `.env.local` com a URL e a chave publicável encontradas nas
+configurações do projeto Supabase.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sua-chave-publicavel
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Depois, abra [http://localhost:3000](http://localhost:3000).
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run dev      # desenvolvimento
+npm run lint     # ESLint
+npm run build    # build de produção e verificação de tipos
+npm run start    # executa o build de produção
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Organização
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+src/
+├── app/
+│   ├── (auth)/login/       # rotas públicas de autenticação
+│   ├── (protected)/        # shell e páginas autenticadas
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── manifest.ts
+├── actions/                # Server Actions validadas no servidor
+├── components/             # componentes globais e UI
+├── features/
+│   ├── auth/               # formulário e store Zustand
+│   └── inventory/          # componentes, serviços e tipos do estoque
+└── lib/
+    ├── auth/               # verificação de sessão
+    ├── schemas/            # schemas Zod
+    ├── supabase/           # clientes browser, servidor e proxy
+    └── utils/
+```
 
-## Deploy on Vercel
+## Estado atual
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Login com Supabase pronto para receber as credenciais.
+- Sessão SSR renovada pelo `src/proxy.ts`.
+- Rotas protegidas verificam o usuário no servidor.
+- Dashboard responsivo criado com a identidade visual do empório.
+- Manifesto web, ícones e metadados básicos configurados.
+- Camada inicial de estoque tipada e preparada para o futuro schema SQL.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+O próximo passo é criar as tabelas, políticas RLS e a função PostgreSQL
+transacional responsável por registrar entradas, saídas, ajustes e estornos.

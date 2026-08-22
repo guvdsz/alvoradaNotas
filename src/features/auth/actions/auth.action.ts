@@ -2,7 +2,10 @@
 
 import { redirect } from "next/navigation";
 
-import { loginSchema, type LoginSchema } from "@/lib/schemas/auth.schema";
+import {
+  loginSchema,
+  type LoginSchema,
+} from "@/features/auth/schemas/auth.schema";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 
 export type AuthActionResult =

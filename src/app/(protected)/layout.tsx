@@ -8,7 +8,7 @@ import {
   WalletCards,
 } from "lucide-react";
 
-import { logoutAction } from "@/actions/auth.action";
+import { logoutAction } from "@/features/auth/actions/auth.action";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { requireUser } from "@/lib/auth/session";
 

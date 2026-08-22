@@ -5,10 +5,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, LockKeyhole, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
 
-import { loginAction } from "@/actions/auth.action";
+import { loginAction } from "@/features/auth/actions/auth.action";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { loginSchema, type LoginSchema } from "@/lib/schemas/auth.schema";
+import {
+  loginSchema,
+  type LoginSchema,
+} from "@/features/auth/schemas/auth.schema";
 
 export function LoginForm({ configured }: { configured: boolean }) {
   const [serverError, setServerError] = useState<string | null>(null);

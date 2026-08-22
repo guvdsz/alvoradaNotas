@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth/session";
 import {
   stockMovementSchema,
   type StockMovementSchema,
-} from "@/lib/schemas/inventory.schema";
+} from "@/features/inventory/schemas/inventory.schema";
 
 export type InventoryActionResult =
   | { success: true }

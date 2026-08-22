@@ -38,7 +38,9 @@ export default async function LoginPage() {
         <div className="mb-6 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
           <Settings2 className="mt-0.5 size-5 shrink-0" />
           <div>
-            <p className="text-sm font-semibold">Supabase ainda não configurado</p>
+            <p className="text-sm font-semibold">
+              Supabase ainda não configurado
+            </p>
             <p className="mt-1 text-xs leading-5 text-amber-800">
               Copie <code>.env.example</code> para <code>.env.local</code> e
               informe as credenciais do projeto.

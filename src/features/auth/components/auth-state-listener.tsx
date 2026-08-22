@@ -2,12 +2,11 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { onAuthStateChanged } from "firebase/auth";
 
 import { useAuthStore } from "@/features/auth/stores/auth-store";
-import {
-  createClient,
-  isSupabaseBrowserConfigured,
-} from "@/lib/supabase/client";
+import { getFirebaseAuth } from "@/lib/firebase/client";
+import { isFirebaseConfigured } from "@/lib/firebase/config";
 
 export function AuthStateListener() {
   const router = useRouter();
@@ -15,37 +14,21 @@ export function AuthStateListener() {
   const setUser = useAuthStore((state) => state.setUser);
 
   useEffect(() => {
-    if (!isSupabaseBrowserConfigured()) {
+    if (!isFirebaseConfigured()) {
       setUser(null);
       return;
     }
 
-    const supabase = createClient();
     setStatus("loading");
 
-    void supabase.auth.getUser().then(({ data }) => {
+    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (user) => {
       setUser(
-        data.user
-          ? { id: data.user.id, email: data.user.email ?? null }
-          : null,
+        user ? { id: user.uid, email: user.email } : null,
       );
+      router.refresh();
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(
-        session?.user
-          ? { id: session.user.id, email: session.user.email ?? null }
-          : null,
-      );
-
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
-        router.refresh();
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    return unsubscribe;
   }, [router, setStatus, setUser]);
 
   return null;

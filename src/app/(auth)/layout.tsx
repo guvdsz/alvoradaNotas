@@ -1,6 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 
-import { BrandLogo } from "@/components/brand/brand-logo";
+import { BrandWordmark } from "@/components/brand/brand-wordmark";
 
 const benefits = [
   "Entradas e saídas com histórico",
@@ -16,7 +16,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       <div className="relative grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/80 bg-white shadow-[0_28px_80px_rgba(120,78,18,0.14)] lg:grid-cols-[1.05fr_0.95fr]">
         <section className="hidden min-h-[650px] flex-col justify-between bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 p-12 text-white lg:flex">
-          <BrandLogo className="w-40 rounded-2xl bg-white/95 p-2 shadow-sm" />
+          <BrandWordmark
+            size="lg"
+            className="rounded-2xl bg-white/95 px-6 py-4 shadow-sm"
+          />
 
           <div>
             <p className="mb-4 text-sm font-bold uppercase tracking-[0.2em] text-yellow-100">

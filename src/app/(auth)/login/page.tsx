@@ -1,28 +1,21 @@
 import type { Metadata } from "next";
 import { Settings2 } from "lucide-react";
-import { redirect } from "next/navigation";
 
-import { BrandLogo } from "@/components/brand/brand-logo";
+import { BrandWordmark } from "@/components/brand/brand-wordmark";
 import { LoginForm } from "@/features/auth/components/login-form";
-import { getCurrentUser } from "@/lib/auth/session";
-import { isSupabaseConfigured } from "@/lib/supabase/server";
+import { isFirebaseConfigured } from "@/lib/firebase/config";
 
 export const metadata: Metadata = {
   title: "Entrar",
 };
 
-export default async function LoginPage() {
-  const configured = isSupabaseConfigured();
-  const user = await getCurrentUser();
-
-  if (user) {
-    redirect("/dashboard");
-  }
+export default function LoginPage() {
+  const configured = isFirebaseConfigured();
 
   return (
     <>
       <div className="mb-8 text-center lg:text-left">
-        <BrandLogo className="mx-auto mb-5 w-36 lg:hidden" />
+        <BrandWordmark size="lg" className="mx-auto mb-7 lg:hidden" />
         <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-600">
           Área administrativa
         </p>
@@ -39,11 +32,11 @@ export default async function LoginPage() {
           <Settings2 className="mt-0.5 size-5 shrink-0" />
           <div>
             <p className="text-sm font-semibold">
-              Supabase ainda não configurado
+              Firebase ainda não configurado
             </p>
             <p className="mt-1 text-xs leading-5 text-amber-800">
               Copie <code>.env.example</code> para <code>.env.local</code> e
-              informe as credenciais do projeto.
+              informe a configuração do aplicativo Web.
             </p>
           </div>
         </div>

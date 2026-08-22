@@ -5,10 +5,10 @@ import { AuthStateListener } from "@/features/auth/components/auth-state-listene
 import "./globals.css";
 
 export const metadata: Metadata = {
-  applicationName: "Alvorada Estoque",
+  applicationName: "Alvorada Notas",
   title: {
-    default: "Alvorada Estoque",
-    template: "%s | Alvorada Estoque",
+    default: "Alvorada Notas",
+    template: "%s | Alvorada Notas",
   },
   description:
     "Controle de estoque e movimentações do Empório Laticínios Alvorada.",
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Alvorada",
+    title: "Alvorada Notas",
   },
 };
 

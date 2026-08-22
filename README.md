@@ -1,17 +1,51 @@
-# Alvorada Estoque
+# Alvorada Notas
 
-Base web para o controle de estoque e movimentações do Empório Laticínios
+Aplicação web para controle de estoque e movimentações do Empório Laticínios
 Alvorada.
 
 ## Stack
 
 - Next.js 16 com App Router e TypeScript
-- React 19
-- Tailwind CSS 4
-- Supabase Auth e PostgreSQL
-- Zustand para estado global no cliente
+- React 19 e Tailwind CSS 4
+- Firebase Authentication com e-mail e senha
+- Cloud Firestore para produtos e movimentações
+- Zustand para o estado global de autenticação
 - React Hook Form + Zod para formulários e validação
-- Lucide React para ícones
+
+## Configurar o Firebase
+
+1. Crie ou abra um projeto no [Firebase Console](https://console.firebase.google.com/).
+2. Em **Configurações do projeto**, registre um aplicativo Web.
+3. Em **Authentication → Sign-in method**, habilite **E-mail/senha**.
+4. Em **Authentication → Users**, crie o usuário administrador.
+5. Em **Firestore Database**, crie o banco em modo de produção.
+6. Copie `.env.example` para `.env.local` e preencha a configuração do app Web:
+
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=sua-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=seu-projeto.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=seu-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=seu-projeto.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=seu-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=seu-app-id
+```
+
+As configurações Web do Firebase são públicas. A segurança dos dados depende do
+Firebase Authentication e das regras do Firestore.
+
+## Publicar as regras do Firestore
+
+Copie o conteúdo de `firestore.rules` para **Firestore Database → Rules** no
+Firebase Console e publique. Se usar a Firebase CLI:
+
+```bash
+npx firebase-tools login
+npx firebase-tools use SEU_PROJECT_ID
+npx firebase-tools deploy --only firestore:rules
+```
+
+As regras incluídas permitem acesso apenas a usuários autenticados, impedem a
+exclusão de produtos e tornam as movimentações imutáveis.
 
 ## Executar localmente
 
@@ -21,55 +55,36 @@ copy .env.example .env.local
 npm run dev
 ```
 
-Preencha o `.env.local` com a URL e a chave publicável encontradas nas
-configurações do projeto Supabase.
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sua-chave-publicavel
-```
-
-Depois, abra [http://localhost:3000](http://localhost:3000).
+Abra [http://localhost:3000](http://localhost:3000).
 
 ## Scripts
 
 ```bash
-npm run dev      # desenvolvimento
-npm run lint     # ESLint
-npm run build    # build de produção e verificação de tipos
-npm run start    # executa o build de produção
+npm run dev
+npm run lint
+npm run build
+npm run start
 ```
 
 ## Organização
 
 ```text
 src/
-├── app/
-│   ├── (auth)/login/       # rotas públicas de autenticação
-│   ├── (protected)/        # shell e páginas autenticadas
-│   ├── globals.css
-│   ├── layout.tsx
-│   └── manifest.ts
-├── actions/                # Server Actions validadas no servidor
-├── components/             # componentes globais e UI
+├── app/                    # rotas públicas e protegidas
+├── components/             # marca e componentes de UI
 ├── features/
-│   ├── auth/               # formulário e store Zustand
-│   └── inventory/          # componentes, serviços e tipos do estoque
+│   ├── auth/               # Firebase Auth, listener e Zustand
+│   └── inventory/          # schemas, serviços Firestore, tipos e painel
 └── lib/
-    ├── auth/               # verificação de sessão
-    ├── schemas/            # schemas Zod
-    ├── supabase/           # clientes browser, servidor e proxy
+    ├── firebase/           # configuração e clientes Auth/Firestore
     └── utils/
 ```
 
-## Estado atual
+## Modelo de dados
 
-- Login com Supabase pronto para receber as credenciais.
-- Sessão SSR renovada pelo `src/proxy.ts`.
-- Rotas protegidas verificam o usuário no servidor.
-- Dashboard responsivo criado com a identidade visual do empório.
-- Manifesto web, ícones e metadados básicos configurados.
-- Camada inicial de estoque tipada e preparada para o futuro schema SQL.
+- `products`: cadastro, unidade, preços, estoque atual e estoque mínimo.
+- `stockMovements`: histórico imutável de entradas e saídas.
 
-O próximo passo é criar as tabelas, políticas RLS e a função PostgreSQL
-transacional responsável por registrar entradas, saídas, ajustes e estornos.
+O serviço de movimentação usa uma transação do Firestore: lê o saldo atual,
+valida a saída, atualiza o produto e grava o histórico de forma atômica. A chave
+de idempotência é usada como ID do documento para impedir lançamentos duplicados.

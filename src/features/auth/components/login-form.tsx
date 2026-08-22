@@ -1,19 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, LockKeyhole, Mail } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
-import { loginAction } from "@/features/auth/actions/auth.action";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import {
   loginSchema,
   type LoginSchema,
 } from "@/features/auth/schemas/auth.schema";
+import {
+  AuthenticationError,
+  login,
+} from "@/features/auth/services/auth.service";
+import { useAuthStore } from "@/features/auth/stores/auth-store";
 
 export function LoginForm({ configured }: { configured: boolean }) {
+  const router = useRouter();
+  const status = useAuthStore((state) => state.status);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -24,12 +31,24 @@ export function LoginForm({ configured }: { configured: boolean }) {
     mode: "onChange",
   });
 
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [router, status]);
+
   async function onSubmit(data: LoginSchema) {
     setServerError(null);
-    const result = await loginAction(data);
 
-    if (!result.success) {
-      setServerError(result.error);
+    try {
+      await login(data);
+      router.replace("/dashboard");
+    } catch (error) {
+      setServerError(
+        error instanceof AuthenticationError
+          ? error.message
+          : "Não foi possível entrar. Tente novamente.",
+      );
     }
   }
 

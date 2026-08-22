@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Alvorada Estoque",
-    short_name: "Alvorada",
+    name: "Alvorada Notas",
+    short_name: "Alvorada Notas",
     description:
       "Controle de estoque e movimentações do Empório Laticínios Alvorada.",
     start_url: "/dashboard",
@@ -14,9 +14,9 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait-primary",
     icons: [
       {
-        src: "/brand/alvorada-logo.png",
-        sizes: "152x152",
-        type: "image/png",
+        src: "/brand/alvorada-notas.svg",
+        sizes: "any",
+        type: "image/svg+xml",
         purpose: "any",
       },
     ],

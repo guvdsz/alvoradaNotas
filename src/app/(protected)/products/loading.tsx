@@ -1,4 +1,4 @@
-import { ProductListSkeleton } from "@/features/inventory/components/product-list-skeleton";
+import { ProductListSkeleton } from "@/features/products/components/product-list-skeleton";
 
 export default function ProductsLoading() {
   return <ProductListSkeleton />;

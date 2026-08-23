@@ -20,24 +20,22 @@ import { useAuthStore } from "@/features/auth/stores/auth-store";
 import {
   stockMovementFormSchema,
   type StockMovementFormSchema,
-} from "@/features/inventory/schemas/inventory.schema";
+} from "@/features/movements/schemas/movement.schema";
 import {
-  InventoryServiceError,
-  listProducts,
   listStockMovements,
+  MovementServiceError,
   registerStockMovement,
-} from "@/features/inventory/services/inventory.service";
-import type {
-  Product,
-  StockMovement,
-} from "@/features/inventory/types/inventory";
+} from "@/features/movements/services/movement.service";
+import type { StockMovement } from "@/features/movements/types/movement";
+import { hasValidStockPrecision } from "@/features/movements/utils/stock-math";
+import { listProducts } from "@/features/products/services/product.service";
+import type { Product } from "@/features/products/types/product";
 import {
   baseUnitLabels,
-  formatCurrency,
   formatStock,
   unitLabels,
-} from "@/features/inventory/utils/formatters";
-import { hasValidStockPrecision } from "@/features/inventory/utils/stock-math";
+} from "@/features/products/utils/product-formatters";
+import { formatCurrency } from "@/lib/utils/formatters";
 
 const defaultValues: StockMovementFormSchema = {
   productId: "",
@@ -471,7 +469,7 @@ function formatMovementDate(value: string) {
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof InventoryServiceError
+  return error instanceof MovementServiceError
     ? error.message
     : "Não foi possível concluir a operação.";
 }

@@ -15,16 +15,16 @@ import {
 
 import {
   deleteProduct,
-  InventoryServiceError,
   listProducts,
-} from "@/features/inventory/services/inventory.service";
-import type { Product } from "@/features/inventory/types/inventory";
+  ProductServiceError,
+} from "@/features/products/services/product.service";
+import type { Product } from "@/features/products/types/product";
 import {
-  formatCurrency,
   formatStock,
   unitLabels,
-} from "@/features/inventory/utils/formatters";
-import { ProductListSkeleton } from "@/features/inventory/components/product-list-skeleton";
+} from "@/features/products/utils/product-formatters";
+import { ProductListSkeleton } from "@/features/products/components/product-list-skeleton";
+import { formatCurrency } from "@/lib/utils/formatters";
 
 export function ProductList() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -43,7 +43,7 @@ export function ProductList() {
       .catch((reason) => {
         if (mounted) {
           setError(
-            reason instanceof InventoryServiceError
+            reason instanceof ProductServiceError
               ? reason.message
               : "Não foi possível carregar os produtos.",
           );
@@ -89,7 +89,7 @@ export function ProductList() {
       );
     } catch (reason) {
       setError(
-        reason instanceof InventoryServiceError
+        reason instanceof ProductServiceError
           ? reason.message
           : "Não foi possível excluir o produto.",
       );

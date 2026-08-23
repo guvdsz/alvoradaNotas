@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { ProductList } from "@/features/inventory/components/product-list";
+import { ProductList } from "@/features/products/components/product-list";
 
 export const metadata: Metadata = {
   title: "Produtos",

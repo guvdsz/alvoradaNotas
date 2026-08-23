@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { MovementManager } from "@/features/inventory/components/movement-manager";
+import { MovementManager } from "@/features/movements/components/movement-manager";
 
 export const metadata: Metadata = {
   title: "Movimentações",

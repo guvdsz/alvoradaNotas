@@ -1,4 +1,4 @@
-import type { ProductUnit } from "@/features/inventory/types/inventory";
+import type { ProductUnit } from "@/features/products/types/product";
 
 export const unitLabels: Record<ProductUnit, string> = {
   unit: "Unidade",
@@ -13,13 +13,6 @@ export const baseUnitLabels: Record<ProductUnit, string> = {
   kilogram: "kg",
   milliliter: "ml",
 };
-
-export function formatCurrency(valueInCents: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(valueInCents / 100);
-}
 
 export function formatStock(value: number, unit: ProductUnit) {
   return `${new Intl.NumberFormat("pt-BR", {

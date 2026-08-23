@@ -14,16 +14,12 @@ import {
   Trophy,
 } from "lucide-react";
 
-import { FinanceSkeleton } from "@/features/inventory/components/finance-skeleton";
-import { getFinanceDashboard } from "@/features/inventory/services/inventory.service";
-import type {
-  FinanceDashboardData,
-  StockMovement,
-} from "@/features/inventory/types/inventory";
-import {
-  formatCurrency,
-  formatStock,
-} from "@/features/inventory/utils/formatters";
+import { FinanceSkeleton } from "@/features/finance/components/finance-skeleton";
+import { getFinanceDashboard } from "@/features/finance/services/finance.service";
+import type { FinanceDashboardData } from "@/features/finance/types/finance";
+import type { StockMovement } from "@/features/movements/types/movement";
+import { formatStock } from "@/features/products/utils/product-formatters";
+import { formatCurrency } from "@/lib/utils/formatters";
 
 export function FinanceContent() {
   const [data, setData] = useState<FinanceDashboardData | null>(null);

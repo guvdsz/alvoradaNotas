@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { DashboardContent } from "@/features/inventory/components/dashboard-content";
+import { DashboardContent } from "@/features/dashboard/components/dashboard-content";
 
 export const metadata: Metadata = {
   title: "Visão geral",

@@ -1,7 +1,5 @@
-import type {
-  ProductUnit,
-  StockMovementType,
-} from "@/features/inventory/types/inventory";
+import type { StockMovementType } from "@/features/movements/types/movement";
+import type { ProductUnit } from "@/features/products/types/product";
 
 const precisionByUnit: Record<ProductUnit, number> = {
   unit: 1,

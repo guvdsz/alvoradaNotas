@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowDownToLine, ArrowUpFromLine, PackagePlus } from "lucide-react";
 
-import { DashboardSkeleton } from "@/features/inventory/components/dashboard-skeleton";
-import { InventorySummary } from "@/features/inventory/components/inventory-summary";
-import { getInventoryDashboard } from "@/features/inventory/services/inventory.service";
-import type { InventoryDashboardData } from "@/features/inventory/types/inventory";
-import { formatCurrency, formatStock } from "@/features/inventory/utils/formatters";
+import { DashboardSkeleton } from "@/features/dashboard/components/dashboard-skeleton";
+import { InventorySummary } from "@/features/dashboard/components/inventory-summary";
+import { getInventoryDashboard } from "@/features/dashboard/services/dashboard.service";
+import type { InventoryDashboardData } from "@/features/dashboard/types/dashboard";
+import { formatStock } from "@/features/products/utils/product-formatters";
+import { formatCurrency } from "@/lib/utils/formatters";
 
 function formatMovementDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value));

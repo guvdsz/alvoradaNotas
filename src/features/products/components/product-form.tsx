@@ -18,23 +18,23 @@ import { useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
+import { listCategories } from "@/features/categories/services/category.service";
+import type { Category } from "@/features/categories/types/category";
 import {
   productSchema,
   type ProductSchema,
-} from "@/features/inventory/schemas/inventory.schema";
+} from "@/features/products/schemas/product.schema";
 import {
   createProduct,
   getProduct,
-  InventoryServiceError,
-  listCategories,
+  ProductServiceError,
   updateProduct,
-} from "@/features/inventory/services/inventory.service";
-import type { Category } from "@/features/inventory/types/inventory";
-import { ProductFormSkeleton } from "@/features/inventory/components/product-form-skeleton";
+} from "@/features/products/services/product.service";
+import { ProductFormSkeleton } from "@/features/products/components/product-form-skeleton";
 import {
   baseUnitLabels,
   formatStock,
-} from "@/features/inventory/utils/formatters";
+} from "@/features/products/utils/product-formatters";
 
 const defaultValues: ProductSchema = {
   name: "",
@@ -97,7 +97,7 @@ export function ProductForm({ productId }: { productId?: string }) {
       .catch((error) => {
         if (mounted) {
           setServerError(
-            error instanceof InventoryServiceError
+            error instanceof ProductServiceError
               ? error.message
               : "Não foi possível carregar os dados do produto.",
           );
@@ -126,7 +126,7 @@ export function ProductForm({ productId }: { productId?: string }) {
       router.refresh();
     } catch (error) {
       setServerError(
-        error instanceof InventoryServiceError
+        error instanceof ProductServiceError
           ? error.message
           : "Não foi possível salvar o produto.",
       );

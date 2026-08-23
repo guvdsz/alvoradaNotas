@@ -11,15 +11,15 @@ import { useAuthStore } from "@/features/auth/stores/auth-store";
 import {
   categorySchema,
   type CategorySchema,
-} from "@/features/inventory/schemas/inventory.schema";
+} from "@/features/categories/schemas/category.schema";
 import {
+  CategoryServiceError,
   createCategory,
   deleteCategory,
-  InventoryServiceError,
   listCategories,
   updateCategory,
-} from "@/features/inventory/services/inventory.service";
-import type { Category } from "@/features/inventory/types/inventory";
+} from "@/features/categories/services/category.service";
+import type { Category } from "@/features/categories/types/category";
 
 export function CategoryManager() {
   const user = useAuthStore((state) => state.user);
@@ -254,7 +254,7 @@ export function CategoryManager() {
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof InventoryServiceError
+  return error instanceof CategoryServiceError
     ? error.message
     : "Não foi possível concluir a operação.";
 }

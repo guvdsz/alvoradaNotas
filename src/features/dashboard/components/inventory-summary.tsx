@@ -1,6 +1,6 @@
 import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Boxes } from "lucide-react";
 
-import type { InventorySummaryData } from "@/features/inventory/types/inventory";
+import type { InventorySummaryData } from "@/features/dashboard/types/dashboard";
 
 const emptySummary: InventorySummaryData = {
   productsCount: 0,

@@ -85,6 +85,18 @@ src/
 - `products`: cadastro, unidade, preços, estoque atual e estoque mínimo.
 - `stockMovements`: histórico imutável de entradas e saídas.
 
-O serviço de movimentação usa uma transação do Firestore: lê o saldo atual,
+O serviço de movimentação usa uma transação do Firestore: lê a quantidade atual,
 valida a saída, atualiza o produto e grava o histórico de forma atômica. A chave
 de idempotência é usada como ID do documento para impedir lançamentos duplicados.
+
+## Módulos disponíveis
+
+- Autenticação com o único usuário administrador.
+- Dashboard com indicadores do Firestore.
+- Produtos: listagem, busca, cadastro, edição e exclusão.
+- Categorias: cadastro, edição e exclusão com proteção para categorias em uso.
+- Movimentações: entradas, saídas, validação de estoque e histórico.
+
+Mesmo com apenas um usuário, o Firestore exige regras para não deixar o banco
+público. As regras atuais são intencionalmente simples: qualquer usuário
+autenticado pode ler e gravar; visitantes não têm acesso.

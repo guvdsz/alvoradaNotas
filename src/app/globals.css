@@ -49,6 +49,13 @@ select {
   font: inherit;
 }
 
+button:not(:disabled),
+a[href],
+select:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
 ::selection {
   background: #fed7aa;
   color: #7d3f12;

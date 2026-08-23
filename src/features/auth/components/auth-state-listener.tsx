@@ -15,6 +15,9 @@ export function AuthStateListener() {
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
+      console.error(
+        "[Auth] A configuração do serviço de autenticação está incompleta.",
+      );
       setUser(null);
       return;
     }
@@ -28,7 +31,9 @@ export function AuthStateListener() {
       router.refresh();
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, [router, setStatus, setUser]);
 
   return null;

@@ -1,16 +1,21 @@
-export type ProductUnit = "unit" | "gram" | "milliliter";
+export type ProductUnit = "unit" | "gram" | "kilogram" | "milliliter";
+
+export type Category = {
+  id: string;
+  name: string;
+  createdAt: string;
+};
 
 export type Product = {
   id: string;
   name: string;
-  category: string;
+  categoryId: string;
+  categoryName: string;
   unit: ProductUnit;
   currentStock: number;
   minimumStock: number;
-  purchasePriceInCents: number;
-  salePriceInCents: number;
+  priceInCents: number;
   barcode: string | null;
-  active: boolean;
   createdAt: string;
 };
 
@@ -27,6 +32,7 @@ export type StockMovement = {
   productUnit: ProductUnit;
   type: StockMovementType;
   quantityInBaseUnit: number;
+  saleValueInCents: number | null;
   previousStock: number;
   resultingStock: number;
   reason: string;
@@ -44,4 +50,33 @@ export type InventorySummaryData = {
 export type InventoryDashboardData = {
   summary: InventorySummaryData;
   recentMovements: StockMovement[];
+};
+
+export type FinanceDailyTotal = {
+  date: string;
+  salesValueInCents: number;
+  salesCount: number;
+};
+
+export type FinanceProductTotal = {
+  productId: string;
+  productName: string;
+  salesValueInCents: number;
+  salesCount: number;
+};
+
+export type FinanceDashboardData = {
+  summary: {
+    salesTodayInCents: number;
+    salesLast7DaysInCents: number;
+    salesLast30DaysInCents: number;
+    averageTicketLast30DaysInCents: number;
+    salesCountLast30Days: number;
+    largestSaleLast30DaysInCents: number;
+    previous30DaysInCents: number;
+    growthLast30DaysPercentage: number | null;
+  };
+  dailySalesLast7Days: FinanceDailyTotal[];
+  topProductsLast30Days: FinanceProductTotal[];
+  recentSales: StockMovement[];
 };

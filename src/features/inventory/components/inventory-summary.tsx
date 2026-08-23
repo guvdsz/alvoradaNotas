@@ -17,7 +17,7 @@ export function InventorySummary({
   loading?: boolean;
 }) {
   const metrics = [
-    { label: "Produtos cadastrados", value: data.productsCount, detail: data.productsCount === 0 ? "Nenhum produto cadastrado" : "Produtos ativos no estoque", icon: Boxes, tone: "bg-blue-50 text-blue-700" },
+    { label: "Produtos cadastrados", value: data.productsCount, detail: data.productsCount === 0 ? "Nenhum produto cadastrado" : "Itens disponíveis no catálogo", icon: Boxes, tone: "bg-blue-50 text-blue-700" },
     { label: "Entradas hoje", value: data.entriesToday, detail: data.entriesToday === 0 ? "Nenhuma entrada registrada" : "Entradas registradas hoje", icon: ArrowDownToLine, tone: "bg-emerald-50 text-emerald-700" },
     { label: "Saídas hoje", value: data.exitsToday, detail: data.exitsToday === 0 ? "Nenhuma saída registrada" : "Saídas registradas hoje", icon: ArrowUpFromLine, tone: "bg-orange-50 text-orange-700" },
     { label: "Estoque baixo", value: data.lowStockCount, detail: data.lowStockCount === 0 ? "Tudo certo por enquanto" : "Produtos pedindo reposição", icon: AlertTriangle, tone: "bg-amber-50 text-amber-700" },

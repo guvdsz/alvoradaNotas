@@ -1,0 +1,11 @@
+import type { Metadata } from "next";
+
+import { CategoryManager } from "@/features/inventory/components/category-manager";
+
+export const metadata: Metadata = {
+  title: "Categorias",
+};
+
+export default function CategoriesPage() {
+  return <CategoryManager />;
+}

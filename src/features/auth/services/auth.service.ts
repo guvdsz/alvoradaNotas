@@ -27,7 +27,7 @@ function getAuthenticationMessage(error: AuthError) {
     case "auth/too-many-requests":
       return "Muitas tentativas. Aguarde um pouco e tente novamente.";
     case "auth/network-request-failed":
-      return "Sem conexão com o Firebase. Verifique sua internet.";
+      return "Sem conexão. Verifique sua internet.";
     default:
       return "Não foi possível entrar. Tente novamente.";
   }
@@ -41,9 +41,8 @@ export async function login(input: LoginSchema) {
       input.password,
     );
   } catch (error) {
-    throw new AuthenticationError(
-      getAuthenticationMessage(error as AuthError),
-    );
+    console.error("[Auth] Não foi possível autenticar o usuário.", error);
+    throw new AuthenticationError(getAuthenticationMessage(error as AuthError));
   }
 }
 

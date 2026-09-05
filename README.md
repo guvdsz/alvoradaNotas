@@ -112,8 +112,9 @@ este projeto não precisa ser convertido em exportação estática.
 2. Em **Project configuration → Environment variables**, cadastre as seis
    variáveis `NEXT_PUBLIC_FIREBASE_*` listadas em `.env.example`. Não as marque
    como secretas: por definição, essas configurações públicas entram no bundle
-   enviado ao navegador. Se o scanner da Netlify sinalizar a API key Web do
-   Firebase, libere somente esse valor público — nunca uma chave privada.
+   enviado ao navegador. O `netlify.toml` já exclui somente essas seis chaves
+   públicas da varredura de valores expostos, mantendo a proteção ativa para
+   qualquer segredo verdadeiro.
 3. Inicie o deploy e teste a URL principal terminada em `netlify.app`.
 4. No Firebase Console, adicione exatamente esse domínio em
    **Authentication → Settings → Authorized domains**. Se testar um Deploy

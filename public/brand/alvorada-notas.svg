@@ -1,13 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Alvorada Notas</title>
   <defs>
-    <linearGradient id="background" x1="80" y1="40" x2="432" y2="472" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ffb719" />
-      <stop offset="1" stop-color="#df720c" />
+    <linearGradient id="background" x1="72" y1="42" x2="448" y2="470" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffbd24" />
+      <stop offset="0.52" stop-color="#ed8a0b" />
+      <stop offset="1" stop-color="#c65308" />
     </linearGradient>
+    <radialGradient id="highlight" cx="0" cy="0" r="1" gradientTransform="translate(116 82) rotate(43) scale(292)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff7d6" stop-opacity="0.34" />
+      <stop offset="1" stop-color="#fff7d6" stop-opacity="0" />
+    </radialGradient>
   </defs>
-  <rect width="512" height="512" rx="128" fill="#fff8e8" />
-  <circle cx="256" cy="256" r="172" fill="url(#background)" />
-  <text x="256" y="280" fill="#fffaf0" font-family="Arial, sans-serif" font-size="176" font-weight="800" letter-spacing="-14" text-anchor="middle">AN</text>
-  <rect x="157" y="313" width="198" height="54" rx="15" fill="#7d3f12" />
-  <text x="256" y="350" fill="#fffaf0" font-family="Arial, sans-serif" font-size="27" font-weight="700" letter-spacing="7" text-anchor="middle">NOTAS</text>
+
+  <rect width="512" height="512" fill="url(#background)" />
+  <rect width="512" height="512" fill="url(#highlight)" />
+  <circle cx="256" cy="256" r="207" fill="none" stroke="#fffaf0" stroke-opacity="0.18" stroke-width="8" />
+
+  <g fill="none" stroke="#8f3b08" stroke-linecap="round" stroke-linejoin="round" stroke-width="40" opacity="0.2" transform="translate(0 7)">
+    <path d="M100 350 167 162l67 188M127 284h80" />
+    <path d="M288 350V162l124 188V162" />
+  </g>
+  <g fill="none" stroke="#fffaf0" stroke-linecap="round" stroke-linejoin="round" stroke-width="40">
+    <path d="M100 350 167 162l67 188M127 284h80" />
+    <path d="M288 350V162l124 188V162" />
+  </g>
 </svg>

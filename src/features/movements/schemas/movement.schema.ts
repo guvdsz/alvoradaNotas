@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { hasAtMostDecimalPlaces } from "@/lib/utils/number";
+
 const stockMovementBaseSchema = z.object({
   productId: z.string().min(1, "Selecione um produto"),
   type: z.enum(["entry", "exit"]),
@@ -10,7 +12,11 @@ const stockMovementBaseSchema = z.object({
   saleValue: z
     .number({ message: "Informe o valor total da venda" })
     .nonnegative("O valor da venda não pode ser negativo")
-    .max(10_000_000, "Valor da venda muito alto"),
+    .max(10_000_000, "Valor da venda muito alto")
+    .refine(
+      (value) => hasAtMostDecimalPlaces(value, 2),
+      "Use no máximo duas casas decimais",
+    ),
   reason: z
     .string()
     .trim()
@@ -28,6 +34,14 @@ function validateSaleValue(
       code: z.ZodIssueCode.custom,
       path: ["saleValue"],
       message: "Informe o valor total da venda",
+    });
+  }
+
+  if (data.type === "entry" && data.saleValue !== 0) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["saleValue"],
+      message: "Entradas não possuem valor de venda",
     });
   }
 }

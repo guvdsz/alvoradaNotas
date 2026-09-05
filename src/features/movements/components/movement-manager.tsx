@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -9,12 +9,12 @@ import {
   Boxes,
   CheckCircle2,
   ClipboardList,
-  LoaderCircle,
   PackagePlus,
 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/Button";
+import { DataErrorState } from "@/components/ui/data-error-state";
 import { Input } from "@/components/ui/Input";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
 import {
@@ -26,7 +26,13 @@ import {
   MovementServiceError,
   registerStockMovement,
 } from "@/features/movements/services/movement.service";
+import {
+  MovementFormSkeleton,
+  MovementHistorySkeleton,
+  MovementManagerSkeleton,
+} from "@/features/movements/components/movement-manager-skeleton";
 import type { StockMovement } from "@/features/movements/types/movement";
+import { calculateSuggestedSaleValue } from "@/features/movements/utils/sale-value";
 import { hasValidStockPrecision } from "@/features/movements/utils/stock-math";
 import { listProducts } from "@/features/products/services/product.service";
 import type { Product } from "@/features/products/types/product";
@@ -47,6 +53,11 @@ const defaultValues: StockMovementFormSchema = {
 
 type MovementFilter = "all" | "entry" | "exit";
 
+type SubmissionAttempt = {
+  fingerprint: string;
+  idempotencyKey: string;
+};
+
 export function MovementManager({
   initialType = "entry",
 }: {
@@ -55,19 +66,26 @@ export function MovementManager({
   const user = useAuthStore((state) => state.user);
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [movementsLoading, setMovementsLoading] = useState(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
+  const [movementsError, setMovementsError] = useState<string | null>(null);
   const [filter, setFilter] = useState<MovementFilter>("all");
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const productsRequestId = useRef(0);
+  const movementsRequestId = useRef(0);
+  const submissionAttempt = useRef<SubmissionAttempt | null>(null);
   const {
     register,
     handleSubmit,
     reset,
+    resetField,
     clearErrors,
     setError,
     setValue,
     control,
-    formState: { errors, isSubmitting },
+    formState: { dirtyFields, errors, isSubmitting },
   } = useForm<StockMovementFormSchema>({
     resolver: zodResolver(stockMovementFormSchema),
     mode: "onChange",
@@ -75,39 +93,105 @@ export function MovementManager({
   });
   const selectedProductId = useWatch({ control, name: "productId" });
   const selectedType = useWatch({ control, name: "type" });
+  const selectedQuantity = useWatch({
+    control,
+    name: "quantityInBaseUnit",
+  });
   const selectedProduct = products.find(
     (product) => product.id === selectedProductId,
   );
-  const selectedProductSaleValue =
-    (selectedProduct?.priceInCents ?? 0) / 100;
+  const suggestedSaleValue = useMemo(
+    () =>
+      calculateSuggestedSaleValue(
+        selectedProduct?.priceInCents ?? 0,
+        selectedQuantity,
+      ),
+    [selectedProduct?.priceInCents, selectedQuantity],
+  );
+  const pricingContext = `${selectedType}:${selectedProductId}`;
+  const previousPricingContext = useRef(pricingContext);
 
   useEffect(() => {
-    setValue(
-      "saleValue",
-      selectedType === "exit" ? selectedProductSaleValue : 0,
-      { shouldDirty: false, shouldValidate: false },
-    );
-  }, [selectedProductId, selectedProductSaleValue, selectedType, setValue]);
+    const contextChanged = previousPricingContext.current !== pricingContext;
+    previousPricingContext.current = pricingContext;
+    const nextValue = selectedType === "exit" ? suggestedSaleValue : 0;
 
-  useEffect(() => {
-    let mounted = true;
-    void Promise.all([listProducts(), listStockMovements()])
-      .then(([loadedProducts, loadedMovements]) => {
-        if (!mounted) return;
-        setProducts(loadedProducts);
-        setMovements(loadedMovements);
-      })
-      .catch((error) => {
-        if (mounted) setServerError(getErrorMessage(error));
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
+    if (contextChanged) {
+      resetField("saleValue", { defaultValue: nextValue });
+      return;
+    }
+
+    if (!dirtyFields.saleValue) {
+      setValue("saleValue", nextValue, {
+        shouldDirty: false,
+        shouldValidate: false,
       });
+    }
+  }, [
+    dirtyFields.saleValue,
+    pricingContext,
+    resetField,
+    selectedType,
+    setValue,
+    suggestedSaleValue,
+  ]);
+
+  const loadProducts = useCallback(async () => {
+    const requestId = ++productsRequestId.current;
+    setProductsLoading(true);
+    setProductsError(null);
+
+    try {
+      const loadedProducts = await listProducts();
+      if (productsRequestId.current === requestId) {
+        setProducts(loadedProducts);
+      }
+    } catch (error) {
+      if (productsRequestId.current === requestId) {
+        setProductsError(getErrorMessage(error));
+      }
+    } finally {
+      if (productsRequestId.current === requestId) {
+        setProductsLoading(false);
+      }
+    }
+  }, []);
+
+  const loadMovements = useCallback(async () => {
+    const requestId = ++movementsRequestId.current;
+    setMovementsLoading(true);
+    setMovementsError(null);
+
+    try {
+      const loadedMovements = await listStockMovements();
+      if (movementsRequestId.current === requestId) {
+        setMovements(loadedMovements);
+      }
+    } catch (error) {
+      if (movementsRequestId.current === requestId) {
+        setMovementsError(getErrorMessage(error));
+      }
+    } finally {
+      if (movementsRequestId.current === requestId) {
+        setMovementsLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      void loadProducts();
+      void loadMovements();
+    });
 
     return () => {
-      mounted = false;
+      active = false;
+      productsRequestId.current += 1;
+      movementsRequestId.current += 1;
     };
-  }, []);
+  }, [loadMovements, loadProducts]);
 
   const visibleMovements = useMemo(
     () =>
@@ -120,23 +204,21 @@ export function MovementManager({
   function changeMovementType(type: "entry" | "exit") {
     if (type === selectedType) return;
 
-    setServerError(null);
+    setSubmitError(null);
     setSuccessMessage(null);
     clearErrors();
     setValue("type", type, { shouldDirty: true, shouldValidate: false });
-    setValue(
-      "saleValue",
-      type === "exit" ? selectedProductSaleValue : 0,
-      { shouldDirty: false, shouldValidate: false },
-    );
+    resetField("saleValue", {
+      defaultValue: type === "exit" ? suggestedSaleValue : 0,
+    });
   }
 
   async function onSubmit(data: StockMovementFormSchema) {
-    setServerError(null);
+    setSubmitError(null);
     setSuccessMessage(null);
 
     if (!user) {
-      setServerError("Sua sessão expirou. Entre novamente.");
+      setSubmitError("Sua sessão expirou. Entre novamente.");
       return;
     }
 
@@ -157,32 +239,56 @@ export function MovementManager({
     }
 
     try {
-      await registerStockMovement(
-        { ...data, idempotencyKey: crypto.randomUUID() },
+      const fingerprint = createSubmissionFingerprint(data);
+      if (submissionAttempt.current?.fingerprint !== fingerprint) {
+        submissionAttempt.current = {
+          fingerprint,
+          idempotencyKey: crypto.randomUUID(),
+        };
+      }
+      const currentAttempt = submissionAttempt.current;
+
+      const result = await registerStockMovement(
+        {
+          ...data,
+          idempotencyKey: currentAttempt.idempotencyKey,
+        },
         user.id,
       );
-      const [updatedProducts, updatedMovements] = await Promise.all([
-        listProducts(),
-        listStockMovements(),
-      ]);
-      setProducts(updatedProducts);
-      setMovements(updatedMovements);
+
+      submissionAttempt.current = null;
+      setProducts((current) =>
+        current.map((item) =>
+          item.id === result.movement.productId
+            ? { ...item, currentStock: result.resultingStock }
+            : item,
+        ),
+      );
+      setMovements((current) =>
+        [
+          result.movement,
+          ...current.filter((item) => item.id !== result.movement.id),
+        ].slice(0, 100),
+      );
       setSuccessMessage(
-        data.type === "entry"
+        result.movement.type === "entry"
           ? "Entrada registrada com sucesso."
           : "Saída registrada com sucesso.",
       );
       reset({
-        productId: data.productId,
-        type: data.type,
+        productId: result.movement.productId,
+        type: result.movement.type,
         quantityInBaseUnit: 0,
-        saleValue:
-          data.type === "exit" ? product.priceInCents / 100 : 0,
+        saleValue: result.movement.type === "exit" ? product.priceInCents / 100 : 0,
         reason: "",
       });
     } catch (error) {
-      setServerError(getErrorMessage(error));
+      setSubmitError(getErrorMessage(error));
     }
+  }
+
+  if (productsLoading && movementsLoading) {
+    return <MovementManagerSkeleton />;
   }
 
   return (
@@ -198,6 +304,9 @@ export function MovementManager({
       </div>
 
       <div className="mt-8 grid items-start gap-6 xl:grid-cols-[0.9fr_1.35fr]">
+        {productsLoading ? (
+          <MovementFormSkeleton />
+        ) : (
         <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-center gap-3">
             <span className={`rounded-xl p-2.5 ${selectedType === "entry" ? "bg-emerald-50 text-emerald-700" : "bg-orange-50 text-orange-700"}`}>
@@ -215,17 +324,12 @@ export function MovementManager({
             </div>
           </div>
 
-          {loading ? (
-            <div className="flex min-h-72 items-center justify-center gap-3 text-sm text-stone-500">
-              <LoaderCircle className="size-5 animate-spin text-brand-600" />
-              Carregando produtos...
-            </div>
-          ) : serverError && products.length === 0 ? (
-            <div className="flex min-h-72 items-center justify-center px-5 text-center">
-              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
-                {serverError}
-              </p>
-            </div>
+          {productsError ? (
+            <DataErrorState
+              message={productsError}
+              onRetry={() => void loadProducts()}
+              className="min-h-72"
+            />
           ) : products.length === 0 ? (
             <div className="flex min-h-72 flex-col items-center justify-center text-center">
               <span className="rounded-2xl bg-stone-100 p-4 text-stone-400">
@@ -236,26 +340,36 @@ export function MovementManager({
               </p>
               <Link
                 href="/products/new"
-                className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white"
+                className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
               >
                 <PackagePlus className="size-4" /> Novo produto
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
+            <form
+              onSubmit={(event) => void handleSubmit(onSubmit)(event)}
+              aria-busy={isSubmitting}
+              className="mt-6"
+            >
+              <fieldset
+                disabled={isSubmitting}
+                className="min-w-0 space-y-5 border-0 p-0 disabled:opacity-80"
+              >
               <input type="hidden" {...register("type")} />
               <div className="grid grid-cols-2 rounded-xl bg-stone-100 p-1">
                 <button
                   type="button"
                   onClick={() => changeMovementType("entry")}
-                  className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${selectedType === "entry" ? "bg-white text-emerald-700 shadow-sm" : "text-stone-500 hover:text-stone-800"}`}
+                  aria-pressed={selectedType === "entry"}
+                  className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-inset ${selectedType === "entry" ? "bg-white text-emerald-700 shadow-sm" : "text-stone-600 hover:text-stone-900"}`}
                 >
                   <ArrowDownToLine className="size-4" /> Entrada
                 </button>
                 <button
                   type="button"
                   onClick={() => changeMovementType("exit")}
-                  className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${selectedType === "exit" ? "bg-white text-orange-700 shadow-sm" : "text-stone-500 hover:text-stone-800"}`}
+                  aria-pressed={selectedType === "exit"}
+                  className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-inset ${selectedType === "exit" ? "bg-white text-orange-700 shadow-sm" : "text-stone-600 hover:text-stone-900"}`}
                 >
                   <ArrowUpFromLine className="size-4" /> Saída
                 </button>
@@ -267,7 +381,11 @@ export function MovementManager({
                 </label>
                 <select
                   id="movement-product"
-                  className="h-12 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm text-stone-900 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                  aria-invalid={Boolean(errors.productId)}
+                  aria-describedby={
+                    errors.productId ? "movement-product-error" : undefined
+                  }
+                  className="h-12 w-full rounded-xl border border-stone-500 bg-white px-3.5 text-base text-stone-900 outline-none transition focus:border-brand-700 focus:ring-2 focus:ring-brand-200 sm:text-sm"
                   {...register("productId")}
                 >
                   <option value="">Selecione um produto</option>
@@ -278,7 +396,10 @@ export function MovementManager({
                   ))}
                 </select>
                 {errors.productId?.message && (
-                  <p className="text-xs font-medium text-red-600">
+                  <p
+                    id="movement-product-error"
+                    className="text-xs font-medium text-red-700"
+                  >
                     {errors.productId.message}
                   </p>
                 )}
@@ -288,7 +409,9 @@ export function MovementManager({
                 id="movement-quantity"
                 label={`Quantidade${selectedProduct ? ` (${baseUnitLabels[selectedProduct.unit]})` : ""}`}
                 type="number"
+                inputMode="decimal"
                 min={selectedProduct?.unit === "kilogram" ? 0.001 : 1}
+                max={1_000_000_000}
                 step={selectedProduct?.unit === "kilogram" ? "0.001" : "1"}
                 placeholder={selectedProduct?.unit === "kilogram" ? "Ex.: 0,5" : "Ex.: 10"}
                 error={errors.quantityInBaseUnit?.message}
@@ -301,7 +424,7 @@ export function MovementManager({
                   <p className="mt-1 text-lg font-bold text-stone-900">
                     {formatStock(selectedProduct.currentStock, selectedProduct.unit)}
                   </p>
-                  <p className="mt-1 text-[11px] text-stone-400">
+                  <p className="mt-1 text-xs text-stone-600">
                     Unidade de controle: {unitLabels[selectedProduct.unit]} ({baseUnitLabels[selectedProduct.unit]})
                   </p>
                 </div>
@@ -312,10 +435,12 @@ export function MovementManager({
                   id="movement-sale-value"
                   label="Valor total da venda (R$)"
                   type="number"
+                  inputMode="decimal"
                   min={0}
+                  max={10_000_000}
                   step="0.01"
                   placeholder="Ex.: 35,90"
-                  helperText="Informe o valor total recebido por esta saída."
+                  helperText={`Sugestão pela quantidade: ${formatCurrency(Math.round(suggestedSaleValue * 100))}. Você pode alterar.`}
                   error={errors.saleValue?.message}
                   {...register("saleValue", { valueAsNumber: true })}
                 />
@@ -324,18 +449,19 @@ export function MovementManager({
               <Input
                 id="movement-reason"
                 label="Motivo"
+                maxLength={240}
                 placeholder={selectedType === "entry" ? "Ex.: Compra de fornecedor" : "Ex.: Venda no balcão"}
                 error={errors.reason?.message}
                 {...register("reason")}
               />
 
-              {serverError && (
+              {submitError && (
                 <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
-                  {serverError}
+                  {submitError}
                 </p>
               )}
               {successMessage && (
-                <p role="status" className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
+                <p role="status" aria-live="polite" className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
                   <CheckCircle2 className="size-4" /> {successMessage}
                 </p>
               )}
@@ -349,15 +475,19 @@ export function MovementManager({
               >
                 {selectedType === "entry" ? "Registrar entrada" : "Registrar saída"}
               </Button>
+              </fieldset>
             </form>
           )}
         </section>
+        )}
 
         <MovementHistory
           movements={visibleMovements}
-          loading={loading}
+          loading={movementsLoading}
+          error={movementsError}
           filter={filter}
           onFilterChange={setFilter}
+          onRetry={() => void loadMovements()}
         />
       </div>
     </div>
@@ -367,14 +497,22 @@ export function MovementManager({
 function MovementHistory({
   movements,
   loading,
+  error,
   filter,
   onFilterChange,
+  onRetry,
 }: {
   movements: StockMovement[];
   loading: boolean;
+  error: string | null;
   filter: MovementFilter;
   onFilterChange: (filter: MovementFilter) => void;
+  onRetry: () => void;
 }) {
+  if (loading) {
+    return <MovementHistorySkeleton />;
+  }
+
   return (
     <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
       <div className="flex flex-col gap-4 border-b border-stone-100 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -382,13 +520,17 @@ function MovementHistory({
           <h2 className="font-bold text-stone-900">Histórico</h2>
           <p className="mt-1 text-xs text-stone-500">Últimos 100 lançamentos registrados.</p>
         </div>
-        <div className="flex rounded-xl bg-stone-100 p-1">
+        <div
+          className="flex rounded-xl bg-stone-100 p-1"
+          aria-label="Filtrar histórico"
+        >
           {(["all", "entry", "exit"] as const).map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => onFilterChange(option)}
-              className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${filter === option ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-800"}`}
+              aria-pressed={filter === option}
+              className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-inset ${filter === option ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"}`}
             >
               {option === "all" ? "Todas" : option === "entry" ? "Entradas" : "Saídas"}
             </button>
@@ -396,11 +538,12 @@ function MovementHistory({
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex min-h-96 items-center justify-center gap-3 text-sm text-stone-500">
-          <LoaderCircle className="size-5 animate-spin text-brand-600" />
-          Carregando histórico...
-        </div>
+      {error ? (
+        <DataErrorState
+          message={error}
+          onRetry={onRetry}
+          className="min-h-96"
+        />
       ) : movements.length === 0 ? (
         <div className="flex min-h-96 flex-col items-center justify-center px-6 text-center">
           <span className="rounded-2xl bg-stone-100 p-4 text-stone-400">
@@ -409,7 +552,7 @@ function MovementHistory({
           <p className="mt-4 text-sm font-semibold text-stone-700">
             Nenhuma movimentação encontrada
           </p>
-          <p className="mt-1 text-xs text-stone-400">
+          <p className="mt-1 text-xs text-stone-600">
             Os lançamentos aparecerão aqui após o primeiro registro.
           </p>
         </div>
@@ -447,7 +590,7 @@ function MovementItem({ movement }: { movement: StockMovement }) {
             Valor da venda: {formatCurrency(movement.saleValueInCents)}
           </p>
         )}
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-stone-400">
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-600">
           <span>{formatMovementDate(movement.createdAt)}</span>
           <span>
             Estoque: {formatStock(movement.previousStock, movement.productUnit)} → {formatStock(movement.resultingStock, movement.productUnit)}
@@ -466,6 +609,16 @@ function formatMovementDate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function createSubmissionFingerprint(data: StockMovementFormSchema) {
+  return JSON.stringify([
+    data.productId,
+    data.type,
+    data.quantityInBaseUnit,
+    data.saleValue,
+    data.reason.trim(),
+  ]);
 }
 
 function getErrorMessage(error: unknown) {

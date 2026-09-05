@@ -3,9 +3,10 @@ export function ProductFormSkeleton() {
     <div
       aria-label="Carregando formulário do produto"
       aria-busy="true"
-      className="mx-auto max-w-4xl animate-pulse"
+      role="status"
+      className="mx-auto max-w-4xl animate-pulse motion-reduce:animate-none"
     >
-      <div className="h-5 w-36 rounded bg-stone-200" />
+      <div className="h-11 w-36 rounded-lg bg-stone-200" />
       <div className="mt-6 h-9 w-56 rounded-lg bg-stone-200" />
       <div className="mt-3 h-4 w-80 max-w-full rounded bg-stone-100" />
 
@@ -32,7 +33,12 @@ export function ProductFormSkeleton() {
             </div>
           </section>
         ))}
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <div className="h-11 rounded-xl bg-stone-200 sm:w-28" />
+          <div className="h-11 rounded-xl bg-brand-100 sm:w-44" />
+        </div>
       </div>
+      <span className="sr-only">Carregando formulário do produto...</span>
     </div>
   );
 }

@@ -6,8 +6,11 @@ import { FolderOpen, LoaderCircle, Pencil, Plus, Save, Trash2, X } from "lucide-
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/Button";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { DataErrorState } from "@/components/ui/data-error-state";
 import { Input } from "@/components/ui/Input";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
+import { CategoryManagerSkeleton } from "@/features/categories/components/category-manager-skeleton";
 import {
   categorySchema,
   type CategorySchema,
@@ -25,8 +28,11 @@ export function CategoryManager() {
   const user = useAuthStore((state) => state.user);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -47,7 +53,7 @@ export function CategoryManager() {
         if (mounted) setCategories(items);
       })
       .catch((error) => {
-        if (mounted) setServerError(getErrorMessage(error));
+        if (mounted) setLoadError(getErrorMessage(error));
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -56,7 +62,14 @@ export function CategoryManager() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [reloadKey]);
+
+  function retryLoading() {
+    setServerError(null);
+    setLoadError(null);
+    setLoading(true);
+    setReloadKey((current) => current + 1);
+  }
 
   async function onSubmit(data: CategorySchema) {
     if (!user) {
@@ -88,19 +101,22 @@ export function CategoryManager() {
   }
 
   function startEditing(category: Category) {
+    setServerError(null);
     setEditingId(category.id);
     reset({ name: category.name });
     window.setTimeout(() => setFocus("name"), 0);
   }
 
   function cancelEditing() {
+    setServerError(null);
     setEditingId(null);
     reset({ name: "" });
   }
 
-  async function handleDelete(category: Category) {
-    if (!window.confirm(`Excluir a categoria “${category.name}”?`)) return;
+  async function confirmDelete() {
+    if (!categoryToDelete) return;
 
+    const category = categoryToDelete;
     setDeletingId(category.id);
     setServerError(null);
     try {
@@ -109,11 +125,17 @@ export function CategoryManager() {
         current.filter((item) => item.id !== category.id),
       );
       if (editingId === category.id) cancelEditing();
+      setCategoryToDelete(null);
     } catch (error) {
       setServerError(getErrorMessage(error));
+      setCategoryToDelete(null);
     } finally {
       setDeletingId(null);
     }
+  }
+
+  if (loading) {
+    return <CategoryManagerSkeleton />;
   }
 
   return (
@@ -128,7 +150,13 @@ export function CategoryManager() {
         </p>
       </div>
 
-      <section className="mt-8 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+      {loadError ? (
+        <section className="mt-8 overflow-hidden rounded-2xl border border-stone-300 bg-white shadow-sm">
+          <DataErrorState message={loadError} onRetry={retryLoading} />
+        </section>
+      ) : (
+        <>
+          <section className="mt-8 rounded-2xl border border-stone-300 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-center gap-3">
           <span className="rounded-xl bg-brand-50 p-2.5 text-brand-700">
             {editingId ? <Pencil className="size-5" /> : <Plus className="size-5" />}
@@ -178,28 +206,23 @@ export function CategoryManager() {
             </Button>
           </div>
         </form>
-      </section>
+          </section>
 
-      {serverError && (
-        <p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
-          {serverError}
-        </p>
-      )}
+          {serverError && (
+            <p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+              {serverError}
+            </p>
+          )}
 
-      <section className="mt-6 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
-        <div className="border-b border-stone-100 px-5 py-4">
+          <section className="mt-6 overflow-hidden rounded-2xl border border-stone-300 bg-white shadow-sm">
+        <div className="border-b border-stone-200 px-5 py-4">
           <h2 className="font-bold text-stone-900">Categorias cadastradas</h2>
           <p className="mt-1 text-xs text-stone-500">
             Uma categoria em uso por algum produto não pode ser excluída.
           </p>
         </div>
 
-        {loading ? (
-          <div className="flex min-h-52 items-center justify-center gap-3 text-sm font-medium text-stone-500">
-            <LoaderCircle className="size-5 animate-spin text-brand-600" />
-            Carregando categorias...
-          </div>
-        ) : categories.length === 0 ? (
+        {categories.length === 0 ? (
           <div className="flex min-h-52 flex-col items-center justify-center px-6 text-center">
             <span className="rounded-2xl bg-stone-100 p-4 text-stone-400">
               <FolderOpen className="size-7" />
@@ -207,7 +230,7 @@ export function CategoryManager() {
             <p className="mt-4 text-sm font-semibold text-stone-700">
               Nenhuma categoria cadastrada
             </p>
-            <p className="mt-1 text-xs text-stone-400">
+            <p className="mt-1 text-xs text-stone-500">
               Cadastre a primeira categoria no formulário acima.
             </p>
           </div>
@@ -215,27 +238,30 @@ export function CategoryManager() {
           <div className="divide-y divide-stone-100">
             {categories.map((category) => (
               <div key={category.id} className="flex items-center gap-4 px-5 py-4">
-                <span className="rounded-xl bg-brand-50 p-2.5 text-brand-700">
+                <span className="rounded-xl bg-brand-50 p-2.5 text-brand-700" aria-hidden="true">
                   <FolderOpen className="size-4" />
                 </span>
                 <p className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-800">
                   {category.name}
                 </p>
-                <div className="flex gap-1">
+                <div className="flex gap-1.5">
                   <button
                     type="button"
                     onClick={() => startEditing(category)}
                     aria-label={`Editar ${category.name}`}
-                    className="rounded-lg p-2 text-stone-400 transition hover:bg-brand-50 hover:text-brand-700"
+                    className="inline-flex size-11 items-center justify-center rounded-xl text-stone-600 transition hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                   >
                     <Pencil className="size-4" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(category)}
-                    disabled={deletingId === category.id}
+                    onClick={() => {
+                      setServerError(null);
+                      setCategoryToDelete(category);
+                    }}
+                    disabled={deletingId !== null}
                     aria-label={`Excluir ${category.name}`}
-                    className="rounded-lg p-2 text-stone-400 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex size-11 items-center justify-center rounded-xl text-stone-600 transition hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {deletingId === category.id ? (
                       <LoaderCircle className="size-4 animate-spin" />
@@ -248,7 +274,22 @@ export function CategoryManager() {
             ))}
           </div>
         )}
-      </section>
+          </section>
+
+          <ConfirmationDialog
+            open={categoryToDelete !== null}
+            title={`Excluir a categoria “${categoryToDelete?.name ?? ""}”?`}
+            description="Essa ação não pode ser desfeita. Categorias vinculadas a produtos não podem ser excluídas."
+            confirmLabel="Excluir categoria"
+            isLoading={deletingId !== null}
+            loadingLabel="Excluindo..."
+            onConfirm={() => void confirmDelete()}
+            onOpenChange={(open) => {
+              if (!open && deletingId === null) setCategoryToDelete(null);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

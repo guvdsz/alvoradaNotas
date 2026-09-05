@@ -24,12 +24,20 @@ export function AuthStateListener() {
 
     setStatus("loading");
 
-    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (user) => {
-      setUser(
-        user ? { id: user.uid, email: user.email } : null,
-      );
-      router.refresh();
-    });
+    const unsubscribe = onAuthStateChanged(
+      getFirebaseAuth(),
+      (user) => {
+        setUser(user ? { id: user.uid, email: user.email } : null);
+        router.refresh();
+      },
+      (error) => {
+        console.error(
+          "[Auth] Não foi possível verificar a sessão do usuário.",
+          error,
+        );
+        setUser(null);
+      },
+    );
 
     return () => {
       unsubscribe();

@@ -8,17 +8,75 @@ export function ConnectionStatus() {
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
 
   useEffect(() => {
-    function updateConnectionStatus() {
-      setIsOnline(window.navigator.onLine);
+    let mounted = true;
+    let currentRequest: AbortController | null = null;
+
+    async function verifyConnection() {
+      currentRequest?.abort();
+
+      if (!window.navigator.onLine) {
+        if (mounted) setIsOnline(false);
+        return;
+      }
+
+      const controller = new AbortController();
+      currentRequest = controller;
+      const timeout = window.setTimeout(() => controller.abort(), 5_000);
+
+      try {
+        const response = await fetch(`/icon.svg?connection-check=${Date.now()}`, {
+          method: "HEAD",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (mounted && currentRequest === controller) {
+          setIsOnline(response.ok);
+        }
+      } catch {
+        if (mounted && currentRequest === controller) {
+          setIsOnline(false);
+        }
+      } finally {
+        window.clearTimeout(timeout);
+        if (currentRequest === controller) currentRequest = null;
+      }
     }
 
-    updateConnectionStatus();
-    window.addEventListener("online", updateConnectionStatus);
-    window.addEventListener("offline", updateConnectionStatus);
+    function handleOnline() {
+      void verifyConnection();
+    }
+
+    function handleOffline() {
+      currentRequest?.abort();
+      currentRequest = null;
+      if (mounted) setIsOnline(false);
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void verifyConnection();
+      }
+    }
+
+    void verifyConnection();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void verifyConnection();
+      }
+    }, 60_000);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      window.removeEventListener("online", updateConnectionStatus);
-      window.removeEventListener("offline", updateConnectionStatus);
+      mounted = false;
+      currentRequest?.abort();
+      window.clearInterval(interval);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 

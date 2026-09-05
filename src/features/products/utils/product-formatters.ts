@@ -14,6 +14,13 @@ export const baseUnitLabels: Record<ProductUnit, string> = {
   milliliter: "ml",
 };
 
+export const unitPriceLabels: Record<ProductUnit, string> = {
+  unit: "Preço por unidade (R$)",
+  gram: "Preço por grama (R$)",
+  kilogram: "Preço por quilograma (R$)",
+  milliliter: "Preço por mililitro (R$)",
+};
+
 export function formatStock(value: number, unit: ProductUnit) {
   return `${new Intl.NumberFormat("pt-BR", {
     maximumFractionDigits: unit === "kilogram" ? 3 : 0,

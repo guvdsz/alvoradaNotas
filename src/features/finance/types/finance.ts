@@ -18,9 +18,9 @@ export type FinanceDashboardData = {
     salesTodayInCents: number;
     salesLast7DaysInCents: number;
     salesLast30DaysInCents: number;
-    averageTicketLast30DaysInCents: number;
-    salesCountLast30Days: number;
-    largestSaleLast30DaysInCents: number;
+    averageExitValueLast30DaysInCents: number;
+    exitsCountLast30Days: number;
+    largestExitLast30DaysInCents: number;
     previous30DaysInCents: number;
     growthLast30DaysPercentage: number | null;
   };

@@ -28,7 +28,7 @@ export default function LoginPage() {
 
       <LoginForm configured={configured} />
 
-      <p className="mt-8 text-center text-xs leading-5 text-stone-400">
+      <p className="mt-8 text-center text-xs leading-5 text-stone-500">
         Acesso restrito a pessoas autorizadas pelo empório.
       </p>
     </>

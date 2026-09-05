@@ -3,7 +3,8 @@ export function FinanceSkeleton() {
     <div
       role="status"
       aria-label="Carregando financeiro"
-      className="mx-auto max-w-7xl animate-pulse"
+      className="mx-auto max-w-7xl animate-pulse motion-reduce:animate-none"
+      aria-busy="true"
     >
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-3">
@@ -18,7 +19,7 @@ export function FinanceSkeleton() {
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="rounded-2xl border border-stone-200 bg-white p-5"
+            className="rounded-2xl border border-stone-300 bg-white p-5"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 space-y-3">
@@ -33,12 +34,12 @@ export function FinanceSkeleton() {
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">
-        <div className="h-96 rounded-2xl border border-stone-200 bg-white" />
-        <div className="h-96 rounded-2xl border border-stone-200 bg-white" />
+        <div className="h-72 rounded-2xl border border-stone-300 bg-white sm:h-96" />
+        <div className="h-72 rounded-2xl border border-stone-300 bg-white sm:h-96" />
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <div className="h-80 rounded-2xl border border-stone-200 bg-white" />
-        <div className="h-80 rounded-2xl border border-stone-200 bg-white" />
+        <div className="h-64 rounded-2xl border border-stone-300 bg-white sm:h-80" />
+        <div className="h-64 rounded-2xl border border-stone-300 bg-white sm:h-80" />
       </div>
       <span className="sr-only">Carregando dados financeiros...</span>
     </div>

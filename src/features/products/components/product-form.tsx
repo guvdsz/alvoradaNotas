@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,9 +13,10 @@ import {
   Save,
   Tags,
 } from "lucide-react";
-import { useForm, useWatch } from "react-hook-form";
+import { useController, useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/Button";
+import { DataErrorState } from "@/components/ui/data-error-state";
 import { Input } from "@/components/ui/Input";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
 import { listCategories } from "@/features/categories/services/category.service";
@@ -34,6 +35,7 @@ import { ProductFormSkeleton } from "@/features/products/components/product-form
 import {
   baseUnitLabels,
   formatStock,
+  unitPriceLabels,
 } from "@/features/products/utils/product-formatters";
 
 const defaultValues: ProductSchema = {
@@ -50,8 +52,10 @@ export function ProductForm({ productId }: { productId?: string }) {
   const user = useAuthStore((state) => state.user);
   const [loadingProduct, setLoadingProduct] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [currentStock, setCurrentStock] = useState<number | null>(null);
+  const requestId = useRef(0);
   const {
     register,
     handleSubmit,
@@ -63,54 +67,59 @@ export function ProductForm({ productId }: { productId?: string }) {
     mode: "onChange",
     defaultValues,
   });
-  const selectedUnit = useWatch({ control, name: "unit" });
+  const { field: unitField } = useController({ control, name: "unit" });
+  const selectedUnit = unitField.value;
+  const unitLocked = Boolean(
+    productId && currentStock !== null && currentStock !== 0,
+  );
+
+  const loadFormData = useCallback(async () => {
+    const currentRequest = ++requestId.current;
+    setLoadingProduct(true);
+    setLoadError(null);
+    try {
+      const [loadedCategories, product] = await Promise.all([
+        listCategories(),
+        productId ? getProduct(productId) : Promise.resolve(null),
+      ]);
+
+      if (requestId.current !== currentRequest) return;
+
+      setCategories(loadedCategories);
+      if (product) {
+        reset({
+          name: product.name,
+          categoryId: product.categoryId,
+          unit: product.unit,
+          minimumStock: product.minimumStock,
+          price: product.priceInCents / 100,
+          barcode: product.barcode ?? "",
+        });
+        setCurrentStock(product.currentStock);
+      }
+    } catch (error) {
+      if (requestId.current === currentRequest) {
+        setLoadError(
+          error instanceof ProductServiceError
+            ? error.message
+            : "Verifique sua conexão e tente novamente.",
+        );
+      }
+    } finally {
+      if (requestId.current === currentRequest) setLoadingProduct(false);
+    }
+  }, [productId, reset]);
 
   useEffect(() => {
-    let mounted = true;
-
-    void Promise.all([
-      listCategories(),
-      productId ? getProduct(productId) : Promise.resolve(null),
-    ])
-      .then(([loadedCategories, product]) => {
-        if (!mounted) return;
-
-        setCategories(loadedCategories);
-        if (product) {
-          const categoryId =
-            product.categoryId ||
-            loadedCategories.find(
-              (category) => category.name === product.categoryName,
-            )?.id ||
-            "";
-          reset({
-            name: product.name,
-            categoryId,
-            unit: product.unit,
-            minimumStock: product.minimumStock,
-            price: product.priceInCents / 100,
-            barcode: product.barcode ?? "",
-          });
-          setCurrentStock(product.currentStock);
-        }
-      })
-      .catch((error) => {
-        if (mounted) {
-          setServerError(
-            error instanceof ProductServiceError
-              ? error.message
-              : "Não foi possível carregar os dados do produto.",
-          );
-        }
-      })
-      .finally(() => {
-        if (mounted) setLoadingProduct(false);
-      });
-
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (active) return loadFormData();
+    });
     return () => {
-      mounted = false;
+      active = false;
+      requestId.current += 1;
     };
-  }, [productId, reset]);
+  }, [loadFormData]);
 
   async function onSubmit(data: ProductSchema) {
     setServerError(null);
@@ -137,11 +146,22 @@ export function ProductForm({ productId }: { productId?: string }) {
     return <ProductFormSkeleton />;
   }
 
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+        <DataErrorState
+          message={loadError}
+          onRetry={() => void loadFormData()}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-4xl">
       <Link
         href="/products"
-        className="inline-flex items-center gap-2 text-sm font-semibold text-stone-500 transition hover:text-brand-700"
+        className="inline-flex min-h-11 items-center gap-2 rounded-lg pr-3 text-sm font-semibold text-stone-600 transition hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
       >
         <ArrowLeft className="size-4" />
         Voltar para produtos
@@ -181,7 +201,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                 </label>
                 <Link
                   href="/categories"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:text-brand-800"
+                  className="relative inline-flex h-5 items-center gap-1 rounded text-xs font-semibold text-brand-700 after:absolute after:-inset-2 after:rounded-lg after:content-[''] hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                 >
                   <Tags className="size-3.5" />
                   Gerenciar
@@ -189,7 +209,11 @@ export function ProductForm({ productId }: { productId?: string }) {
               </div>
               <select
                 id="categoryId"
-                className="h-12 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm text-stone-900 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                aria-invalid={Boolean(errors.categoryId)}
+                aria-describedby={
+                  errors.categoryId ? "categoryId-error" : undefined
+                }
+                className="h-12 w-full rounded-xl border border-stone-300 bg-white px-3.5 text-base text-stone-900 outline-none transition focus:border-brand-600 focus:ring-4 focus:ring-brand-100 sm:text-sm"
                 {...register("categoryId")}
               >
                 <option value="">Selecione uma categoria</option>
@@ -200,7 +224,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                 ))}
               </select>
               {errors.categoryId?.message && (
-                <p className="text-xs font-medium text-red-600">
+                <p id="categoryId-error" className="text-xs font-medium text-red-700">
                   {errors.categoryId.message}
                 </p>
               )}
@@ -217,8 +241,17 @@ export function ProductForm({ productId }: { productId?: string }) {
               </label>
               <select
                 id="unit"
-                className="h-12 w-full rounded-xl border border-stone-200 bg-white px-3.5 text-sm text-stone-900 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
-                {...register("unit")}
+                aria-invalid={Boolean(errors.unit)}
+                aria-describedby={
+                  errors.unit
+                    ? "unit-error"
+                    : unitLocked
+                      ? "unit-locked-help"
+                      : undefined
+                }
+                disabled={unitLocked}
+                className="h-12 w-full rounded-xl border border-stone-300 bg-white px-3.5 text-base text-stone-900 outline-none transition focus:border-brand-600 focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-600 sm:text-sm"
+                {...unitField}
               >
                 <option value="unit">Por unidade</option>
                 <option value="gram">Por grama — exemplo: 500 g</option>
@@ -226,8 +259,14 @@ export function ProductForm({ productId }: { productId?: string }) {
                 <option value="milliliter">Por volume — controle em mililitros</option>
               </select>
               {errors.unit?.message && (
-                <p className="text-xs font-medium text-red-600">
+                <p id="unit-error" className="text-xs font-medium text-red-700">
                   {errors.unit.message}
+                </p>
+              )}
+              {unitLocked && (
+                <p id="unit-locked-help" className="text-xs leading-5 text-stone-600">
+                  Zere a quantidade no estoque antes de alterar esta forma de
+                  controle.
                 </p>
               )}
             </div>
@@ -256,7 +295,9 @@ export function ProductForm({ productId }: { productId?: string }) {
               id="minimumStock"
               label={`Estoque mínimo (${baseUnitLabels[selectedUnit]})`}
               type="number"
+              inputMode="decimal"
               min={0}
+              max={1_000_000_000}
               step={selectedUnit === "kilogram" ? "0.001" : "1"}
               error={errors.minimumStock?.message}
               {...register("minimumStock", { valueAsNumber: true })}
@@ -267,7 +308,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                 <p className="mt-1 text-lg font-bold text-stone-900">
                   {formatStock(currentStock, selectedUnit)}
                 </p>
-                <p className="mt-1 text-[11px] text-stone-400">
+                <p className="mt-1 text-xs text-stone-600">
                   Alterado apenas por movimentações.
                 </p>
               </div>
@@ -289,10 +330,13 @@ export function ProductForm({ productId }: { productId?: string }) {
           <div className="mt-6 max-w-sm">
             <Input
               id="price"
-              label="Valor do produto (R$)"
+              label={unitPriceLabels[selectedUnit]}
               type="number"
+              inputMode="decimal"
               min={0}
+              max={10_000_000}
               step="0.01"
+              helperText="Este preço é usado para sugerir o valor total das saídas."
               error={errors.price?.message}
               {...register("price", { valueAsNumber: true })}
             />

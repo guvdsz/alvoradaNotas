@@ -14,6 +14,7 @@ import {
   Trophy,
 } from "lucide-react";
 
+import { DataErrorState } from "@/components/ui/data-error-state";
 import { FinanceSkeleton } from "@/features/finance/components/finance-skeleton";
 import { getFinanceDashboard } from "@/features/finance/services/finance.service";
 import type { FinanceDashboardData } from "@/features/finance/types/finance";
@@ -24,6 +25,8 @@ import { formatCurrency } from "@/lib/utils/formatters";
 export function FinanceContent() {
   const [data, setData] = useState<FinanceDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -33,6 +36,11 @@ export function FinanceContent() {
         if (active) setData(financeData);
       })
       .catch((error) => {
+        if (active) {
+          setLoadError(
+            "Verifique sua conexão e tente carregar os indicadores novamente.",
+          );
+        }
         console.error("[Financeiro] Não foi possível carregar os dados.", error);
       })
       .finally(() => {
@@ -42,7 +50,13 @@ export function FinanceContent() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
+
+  function retryLoading() {
+    setLoadError(null);
+    setLoading(true);
+    setReloadKey((current) => current + 1);
+  }
 
   if (loading) {
     return <FinanceSkeleton />;
@@ -63,14 +77,20 @@ export function FinanceContent() {
         </div>
         <Link
           href="/movements?type=exit"
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 sm:w-auto"
         >
           <ArrowUpFromLine className="size-4" />
           Registrar venda
         </Link>
       </section>
 
-      {data && <FinanceDashboard data={data} />}
+      {loadError ? (
+        <section className="mt-8 overflow-hidden rounded-2xl border border-stone-300 bg-white shadow-sm">
+          <DataErrorState message={loadError} onRetry={retryLoading} />
+        </section>
+      ) : (
+        data && <FinanceDashboard data={data} />
+      )}
     </div>
   );
 }
@@ -100,9 +120,9 @@ function FinanceDashboard({ data }: { data: FinanceDashboardData }) {
       tone: "bg-brand-50 text-brand-700",
     },
     {
-      label: "Ticket médio",
-      value: summary.averageTicketLast30DaysInCents,
-      detail: "Valor médio por venda em 30 dias",
+      label: "Média por saída",
+      value: summary.averageExitValueLast30DaysInCents,
+      detail: "Valor médio por saída em 30 dias",
       icon: ReceiptText,
       tone: "bg-violet-50 text-violet-700",
     },
@@ -129,7 +149,7 @@ function FinanceDashboard({ data }: { data: FinanceDashboardData }) {
         <RecentSales sales={data.recentSales} />
       </section>
 
-      <p className="mt-6 text-xs leading-5 text-stone-400">
+      <p className="mt-6 text-xs leading-5 text-stone-500">
         Os valores representam faturamento bruto das saídas com valor de venda.
         Custos e lucro não estão incluídos neste cálculo.
       </p>
@@ -151,11 +171,11 @@ function FinanceMetricCard({
   tone: string;
 }) {
   return (
-    <article className="min-w-0 rounded-2xl border border-stone-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(41,37,36,0.04)]">
+    <article className="min-w-0 rounded-2xl border border-stone-300/80 bg-white p-5 shadow-[0_1px_2px_rgba(41,37,36,0.04)]">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-sm font-medium text-stone-500">{label}</p>
-          <p className="mt-2 break-words text-2xl font-bold tracking-tight text-stone-900 sm:text-3xl">
+          <p className="mt-2 break-words text-xl font-bold tabular-nums tracking-tight text-stone-900 [overflow-wrap:anywhere] min-[360px]:text-2xl sm:text-3xl">
             {formatCurrency(value)}
           </p>
         </div>
@@ -175,7 +195,7 @@ function DailySales({ data }: { data: FinanceDashboardData }) {
   );
 
   return (
-    <article className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
+    <article className="rounded-2xl border border-stone-300/80 bg-white p-5 shadow-sm sm:p-6">
       <h2 className="font-bold text-stone-900">Vendas por dia</h2>
       <p className="mt-1 text-sm text-stone-500">
         Evolução do faturamento nos últimos 7 dias.
@@ -184,7 +204,7 @@ function DailySales({ data }: { data: FinanceDashboardData }) {
         {data.dailySalesLast7Days.map((day) => {
           const width = (day.salesValueInCents / highestValue) * 100;
           return (
-            <div key={day.date} className="grid grid-cols-[4.5rem_1fr] gap-3 sm:grid-cols-[6rem_1fr_7rem] sm:items-center">
+            <div key={day.date} className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 sm:grid-cols-[6rem_minmax(0,1fr)_7rem]">
               <p className="text-xs font-semibold capitalize text-stone-600">
                 {formatShortDate(day.date)}
               </p>
@@ -194,11 +214,11 @@ function DailySales({ data }: { data: FinanceDashboardData }) {
                   style={{ width: `${width}%` }}
                 />
               </div>
-              <div className="col-span-2 flex items-center justify-between pl-[5.25rem] text-xs sm:col-span-1 sm:block sm:pl-0 sm:text-right">
-                <span className="font-bold text-stone-800">
+              <div className="col-start-2 flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 text-xs sm:col-start-auto sm:block sm:text-right">
+                <span className="font-bold tabular-nums text-stone-800">
                   {formatCurrency(day.salesValueInCents)}
                 </span>
-                <span className="ml-2 text-[10px] text-stone-400 sm:block sm:ml-0">
+                <span className="text-xs text-stone-500 sm:block">
                   {day.salesCount} venda{day.salesCount === 1 ? "" : "s"}
                 </span>
               </div>
@@ -216,7 +236,7 @@ function PeriodIndicators({ data }: { data: FinanceDashboardData }) {
   const positiveGrowth = growth !== null && growth >= 0;
 
   return (
-    <article className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
+    <article className="rounded-2xl border border-stone-300/80 bg-white p-5 shadow-sm sm:p-6">
       <h2 className="font-bold text-stone-900">Indicadores de 30 dias</h2>
       <p className="mt-1 text-sm text-stone-500">
         Leitura rápida do período atual.
@@ -224,13 +244,13 @@ function PeriodIndicators({ data }: { data: FinanceDashboardData }) {
       <div className="mt-6 divide-y divide-stone-100">
         <IndicatorRow
           icon={ShoppingBag}
-          label="Vendas registradas"
-          value={summary.salesCountLast30Days.toLocaleString("pt-BR")}
+          label="Saídas registradas"
+          value={summary.exitsCountLast30Days.toLocaleString("pt-BR")}
         />
         <IndicatorRow
           icon={Trophy}
-          label="Maior venda"
-          value={formatCurrency(summary.largestSaleLast30DaysInCents)}
+          label="Maior saída"
+          value={formatCurrency(summary.largestExitLast30DaysInCents)}
         />
         <div className="flex items-center gap-3 py-4">
           <span className={`rounded-xl p-2.5 ${growth === null ? "bg-stone-100 text-stone-500" : positiveGrowth ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
@@ -283,7 +303,7 @@ function IndicatorRow({
 
 function TopProducts({ data }: { data: FinanceDashboardData }) {
   return (
-    <article className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
+    <article className="overflow-hidden rounded-2xl border border-stone-300/80 bg-white shadow-sm">
       <div className="border-b border-stone-100 p-5 sm:p-6">
         <h2 className="font-bold text-stone-900">Produtos em destaque</h2>
         <p className="mt-1 text-sm text-stone-500">
@@ -308,11 +328,11 @@ function TopProducts({ data }: { data: FinanceDashboardData }) {
                     <p className="truncate text-sm font-semibold text-stone-800">
                       {product.productName}
                     </p>
-                    <p className="text-[11px] text-stone-400">
+                    <p className="text-xs text-stone-500">
                       {product.salesCount} venda{product.salesCount === 1 ? "" : "s"}
                     </p>
                   </div>
-                  <p className="text-sm font-bold text-stone-900">
+                  <p className="max-w-[45%] shrink-0 break-words text-right text-sm font-bold tabular-nums text-stone-900 [overflow-wrap:anywhere]">
                     {formatCurrency(product.salesValueInCents)}
                   </p>
                 </div>
@@ -335,7 +355,7 @@ function TopProducts({ data }: { data: FinanceDashboardData }) {
 
 function RecentSales({ sales }: { sales: StockMovement[] }) {
   return (
-    <article className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
+    <article className="overflow-hidden rounded-2xl border border-stone-300/80 bg-white shadow-sm">
       <div className="border-b border-stone-100 p-5 sm:p-6">
         <h2 className="font-bold text-stone-900">Vendas recentes</h2>
         <p className="mt-1 text-sm text-stone-500">
@@ -353,11 +373,11 @@ function RecentSales({ sales }: { sales: StockMovement[] }) {
                 <p className="truncate text-sm font-semibold text-stone-800">
                   {sale.productName}
                 </p>
-                <p className="truncate text-[11px] text-stone-400">
+                <p className="truncate text-xs text-stone-500">
                   {formatStock(sale.quantityInBaseUnit, sale.productUnit)} · {formatSaleDate(sale.createdAt)}
                 </p>
               </div>
-              <p className="shrink-0 text-sm font-bold text-stone-900">
+              <p className="max-w-[42%] shrink-0 break-words text-right text-sm font-bold tabular-nums text-stone-900 [overflow-wrap:anywhere]">
                 {formatCurrency(sale.saleValueInCents ?? 0)}
               </p>
             </div>
@@ -377,7 +397,7 @@ function FinanceEmptyState({ text }: { text: string }) {
         <CircleDollarSign className="size-7" />
       </span>
       <p className="mt-4 text-sm font-semibold text-stone-700">Sem dados financeiros</p>
-      <p className="mt-1 max-w-xs text-xs leading-5 text-stone-400">{text}</p>
+      <p className="mt-1 max-w-xs text-xs leading-5 text-stone-500">{text}</p>
     </div>
   );
 }

@@ -30,7 +30,13 @@ export function handleDataServiceError(
 }
 
 export function firestoreDateToIso(value: unknown) {
-  return value instanceof Timestamp
-    ? value.toDate().toISOString()
-    : new Date().toISOString();
+  if (value instanceof Timestamp) {
+    return value.toDate().toISOString();
+  }
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+
+  throw new DataServiceError("O registro possui uma data inválida.");
 }

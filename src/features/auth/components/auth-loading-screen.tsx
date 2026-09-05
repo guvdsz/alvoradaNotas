@@ -11,11 +11,18 @@ export function AuthLoadingScreen({
 }) {
   const status = useAuthStore((state) => state.status);
 
-  if (status === "loading") {
+  if (status === "idle" || status === "loading") {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-cream-50">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex min-h-dvh items-center justify-center bg-cream-50"
+      >
         <div className="flex items-center gap-3 text-sm font-medium text-stone-600">
-          <LoaderCircle className="size-5 animate-spin text-brand-600" />
+          <LoaderCircle
+            className="size-5 animate-spin text-brand-600"
+            aria-hidden="true"
+          />
           Verificando acesso...
         </div>
       </div>

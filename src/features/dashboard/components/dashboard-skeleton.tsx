@@ -1,9 +1,10 @@
 export function DashboardSkeleton() {
   return (
     <div
-      className="mx-auto max-w-7xl animate-pulse"
+      className="mx-auto max-w-7xl animate-pulse motion-reduce:animate-none"
       role="status"
       aria-label="Carregando visão geral"
+      aria-busy="true"
     >
       <section className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div className="space-y-3">
@@ -11,9 +12,9 @@ export function DashboardSkeleton() {
           <div className="h-9 w-56 rounded-xl bg-stone-200" />
           <div className="h-4 w-80 max-w-full rounded-full bg-stone-200" />
         </div>
-        <div className="flex gap-2">
-          <div className="h-11 w-36 rounded-xl bg-stone-200" />
-          <div className="h-11 w-40 rounded-xl bg-stone-200" />
+        <div className="grid w-full grid-cols-1 gap-2 min-[390px]:grid-cols-2 sm:flex sm:w-auto">
+          <div className="h-11 w-full rounded-xl bg-stone-200 sm:w-36" />
+          <div className="h-11 w-full rounded-xl bg-stone-200 sm:w-40" />
         </div>
       </section>
 

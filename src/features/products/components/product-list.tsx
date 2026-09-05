@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -13,6 +13,8 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { DataErrorState } from "@/components/ui/data-error-state";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   deleteProduct,
   listProducts,
@@ -31,32 +33,43 @@ export function ProductList() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const requestId = useRef(0);
+
+  const loadProducts = useCallback(async () => {
+    const currentRequest = ++requestId.current;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const loadedProducts = await listProducts();
+      if (requestId.current === currentRequest) {
+        setProducts(loadedProducts);
+      }
+    } catch (reason) {
+      if (requestId.current === currentRequest) {
+        setLoadError(
+          reason instanceof ProductServiceError
+            ? reason.message
+            : "Verifique sua conexão e tente novamente.",
+        );
+      }
+    } finally {
+      if (requestId.current === currentRequest) setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let mounted = true;
-
-    void listProducts()
-      .then((items) => {
-        if (mounted) setProducts(items);
-      })
-      .catch((reason) => {
-        if (mounted) {
-          setError(
-            reason instanceof ProductServiceError
-              ? reason.message
-              : "Não foi possível carregar os produtos.",
-          );
-        }
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (active) return loadProducts();
+    });
     return () => {
-      mounted = false;
+      active = false;
+      requestId.current += 1;
     };
-  }, []);
+  }, [loadProducts]);
 
   const visibleProducts = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
@@ -71,28 +84,25 @@ export function ProductList() {
     );
   }, [products, search]);
 
-  async function handleDelete(product: Product) {
-    if (
-      !window.confirm(
-        `Excluir “${product.name}” definitivamente? O histórico de movimentações será preservado.`,
-      )
-    ) {
-      return;
-    }
+  async function confirmDelete() {
+    if (!productToDelete) return;
 
+    const product = productToDelete;
     setDeletingId(product.id);
-    setError(null);
+    setActionError(null);
     try {
       await deleteProduct(product.id);
       setProducts((current) =>
         current.filter((item) => item.id !== product.id),
       );
+      setProductToDelete(null);
     } catch (reason) {
-      setError(
+      setActionError(
         reason instanceof ProductServiceError
           ? reason.message
           : "Não foi possível excluir o produto.",
       );
+      setProductToDelete(null);
     } finally {
       setDeletingId(null);
     }
@@ -117,7 +127,7 @@ export function ProductList() {
         <div className="flex flex-col gap-2 sm:flex-row">
           <Link
             href="/categories"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50"
           >
             <FolderPlus className="size-4" /> Categorias
           </Link>
@@ -133,25 +143,31 @@ export function ProductList() {
       <section className="mt-8 rounded-2xl border border-stone-200 bg-white shadow-sm">
         <div className="border-b border-stone-100 p-4 sm:p-5">
           <div className="relative w-full sm:max-w-md">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-stone-500" />
             <input
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar por nome, categoria ou código"
               aria-label="Buscar produtos"
-              className="h-11 w-full rounded-xl border border-stone-200 bg-stone-50 pl-10 pr-4 text-sm outline-none transition placeholder:text-stone-400 focus:border-brand-400 focus:bg-white focus:ring-4 focus:ring-brand-100"
+              className="h-11 w-full rounded-xl border border-stone-300 bg-stone-50 pl-10 pr-4 text-base outline-none transition placeholder:text-stone-500 focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-100 sm:text-sm"
             />
           </div>
         </div>
 
-        {error && (
+        {actionError && (
           <div role="alert" className="m-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
+            {actionError}
           </div>
         )}
 
-        {visibleProducts.length === 0 ? (
+        {loadError ? (
+          <DataErrorState
+            message={loadError}
+            onRetry={() => void loadProducts()}
+            className="min-h-80"
+          />
+        ) : visibleProducts.length === 0 ? (
           <div className="flex min-h-80 flex-col items-center justify-center px-6 text-center">
             <span className="rounded-2xl bg-brand-50 p-4 text-brand-600">
               <PackageOpen className="size-7" />
@@ -169,7 +185,7 @@ export function ProductList() {
             {products.length === 0 && (
               <Link
                 href="/products/new"
-                className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white"
+                className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
               >
                 <Plus className="size-4" /> Cadastrar produto
               </Link>
@@ -177,17 +193,21 @@ export function ProductList() {
           </div>
         ) : (
           <>
-            <div className="divide-y divide-stone-100 md:hidden">
+            <div className="divide-y divide-stone-100 lg:hidden">
               {visibleProducts.map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
                   deleting={deletingId === product.id}
-                  onDelete={() => handleDelete(product)}
+                  deletionPending={deletingId !== null}
+                  onDelete={() => {
+                    setActionError(null);
+                    setProductToDelete(product);
+                  }}
                 />
               ))}
             </div>
-            <div className="hidden overflow-x-auto md:block">
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[760px] text-left">
                 <thead className="bg-stone-50/80 text-xs font-semibold uppercase tracking-wide text-stone-500">
                   <tr>
@@ -204,7 +224,11 @@ export function ProductList() {
                       key={product.id}
                       product={product}
                       deleting={deletingId === product.id}
-                      onDelete={() => handleDelete(product)}
+                      deletionPending={deletingId !== null}
+                      onDelete={() => {
+                        setActionError(null);
+                        setProductToDelete(product);
+                      }}
                     />
                   ))}
                 </tbody>
@@ -213,6 +237,19 @@ export function ProductList() {
           </>
         )}
       </section>
+
+      <ConfirmationDialog
+        open={productToDelete !== null}
+        title={`Excluir o produto “${productToDelete?.name ?? ""}”?`}
+        description="Essa ação não pode ser desfeita. O histórico de movimentações será preservado."
+        confirmLabel="Excluir produto"
+        isLoading={deletingId !== null}
+        loadingLabel="Excluindo..."
+        onConfirm={() => void confirmDelete()}
+        onOpenChange={(open) => {
+          if (!open && deletingId === null) setProductToDelete(null);
+        }}
+      />
     </div>
   );
 }
@@ -225,7 +262,7 @@ function StockValue({ product }: { product: Product }) {
         {lowStock && <AlertTriangle className="size-3.5" />}
         {formatStock(product.currentStock, product.unit)}
       </p>
-      <p className="mt-0.5 text-[11px] text-stone-400">
+      <p className="mt-0.5 text-xs text-stone-600">
         Mín. {formatStock(product.minimumStock, product.unit)}
       </p>
     </div>
@@ -235,17 +272,19 @@ function StockValue({ product }: { product: Product }) {
 function ProductRow({
   product,
   deleting,
+  deletionPending,
   onDelete,
 }: {
   product: Product;
   deleting: boolean;
+  deletionPending: boolean;
   onDelete: () => void;
 }) {
   return (
     <tr className="text-stone-700">
       <td className="px-5 py-4">
         <p className="font-semibold text-stone-900">{product.name}</p>
-        <p className="mt-0.5 text-xs text-stone-400">
+        <p className="mt-0.5 text-xs text-stone-500">
           {product.categoryName}
           {product.barcode ? ` · ${product.barcode}` : ""}
         </p>
@@ -260,16 +299,16 @@ function ProductRow({
           <Link
             href={`/products/${product.id}/edit`}
             aria-label={`Editar ${product.name}`}
-            className="rounded-lg p-2 text-stone-400 transition hover:bg-brand-50 hover:text-brand-700"
+            className="inline-flex size-11 items-center justify-center rounded-xl text-stone-600 transition hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
           >
             <Pencil className="size-4" />
           </Link>
           <button
             type="button"
             onClick={onDelete}
-            disabled={deleting}
+            disabled={deletionPending}
             aria-label={`Excluir ${product.name}`}
-            className="rounded-lg p-2 text-stone-400 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex size-11 items-center justify-center rounded-xl text-stone-600 transition hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {deleting ? (
               <LoaderCircle className="size-4 animate-spin" />
@@ -286,27 +325,29 @@ function ProductRow({
 function ProductCard({
   product,
   deleting,
+  deletionPending,
   onDelete,
 }: {
   product: Product;
   deleting: boolean;
+  deletionPending: boolean;
   onDelete: () => void;
 }) {
   return (
     <article className="p-5">
       <div>
         <p className="font-bold text-stone-900">{product.name}</p>
-        <p className="mt-1 text-xs text-stone-400">
+        <p className="mt-1 text-xs text-stone-600">
           {product.categoryName} · {unitLabels[product.unit]}
         </p>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-stone-50 p-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase text-stone-400">Estoque</p>
+          <p className="text-xs font-semibold uppercase text-stone-600">Estoque</p>
           <StockValue product={product} />
         </div>
         <div>
-          <p className="text-[11px] font-semibold uppercase text-stone-400">Valor</p>
+          <p className="text-xs font-semibold uppercase text-stone-600">Valor</p>
           <p className="mt-1 font-bold text-stone-800">
             {formatCurrency(product.priceInCents)}
           </p>
@@ -315,15 +356,15 @@ function ProductCard({
       <div className="mt-4 flex gap-2">
         <Link
           href={`/products/${product.id}/edit`}
-          className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white text-xs font-semibold text-stone-700"
+          className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white text-sm font-semibold text-stone-700"
         >
           <Pencil className="size-3.5" /> Editar
         </Link>
         <button
           type="button"
           onClick={onDelete}
-          disabled={deleting}
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 text-xs font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={deletionPending}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {deleting ? (
             <LoaderCircle className="size-3.5 animate-spin" />

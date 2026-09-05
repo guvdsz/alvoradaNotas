@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { hasAtMostDecimalPlaces } from "@/lib/utils/number";
+
 export const productSchema = z
   .object({
     name: z
@@ -16,7 +18,11 @@ export const productSchema = z
     price: z
       .number({ message: "Informe o valor do produto" })
       .nonnegative("O preço não pode ser negativo")
-      .max(10_000_000, "Preço muito alto"),
+      .max(10_000_000, "Preço muito alto")
+      .refine(
+        (value) => hasAtMostDecimalPlaces(value, 2),
+        "Use no máximo duas casas decimais",
+      ),
     barcode: z
       .string()
       .trim()
@@ -24,11 +30,19 @@ export const productSchema = z
       .optional(),
   })
   .superRefine((data, context) => {
-    if (data.unit !== "kilogram" && !Number.isInteger(data.minimumStock)) {
+    const validMinimumStock =
+      data.unit === "kilogram"
+        ? hasAtMostDecimalPlaces(data.minimumStock, 3)
+        : Number.isInteger(data.minimumStock);
+
+    if (!validMinimumStock) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["minimumStock"],
-        message: "Use um número inteiro para esta unidade",
+        message:
+          data.unit === "kilogram"
+            ? "Use no máximo três casas decimais"
+            : "Use um número inteiro para esta unidade",
       });
     }
   });

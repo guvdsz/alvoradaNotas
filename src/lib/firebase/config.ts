@@ -9,7 +9,10 @@ const firebaseConfig = {
 
 export function isFirebaseConfigured() {
   return Object.values(firebaseConfig).every(
-    (value) => Boolean(value) && !value?.startsWith("seu-"),
+    (value) =>
+      typeof value === "string" &&
+      value.trim().length > 0 &&
+      !/^su[ae]-/i.test(value.trim()),
   );
 }
 

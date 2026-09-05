@@ -1,10 +1,6 @@
 import type { ProductUnit } from "@/features/products/types/product";
 
-export type StockMovementType =
-  | "entry"
-  | "exit"
-  | "adjustment"
-  | "reversal";
+export type StockMovementType = "entry" | "exit";
 
 export type StockMovement = {
   id: string;

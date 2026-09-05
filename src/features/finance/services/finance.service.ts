@@ -89,11 +89,11 @@ export async function getFinanceDashboard(): Promise<FinanceDashboardData> {
           ),
         ),
         salesLast30DaysInCents,
-        averageTicketLast30DaysInCents: salesLast30Days.length
+        averageExitValueLast30DaysInCents: salesLast30Days.length
           ? Math.round(salesLast30DaysInCents / salesLast30Days.length)
           : 0,
-        salesCountLast30Days: salesLast30Days.length,
-        largestSaleLast30DaysInCents: salesLast30Days.length
+        exitsCountLast30Days: salesLast30Days.length,
+        largestExitLast30DaysInCents: salesLast30Days.length
           ? Math.max(
               ...salesLast30Days.map((sale) => sale.saleValueInCents ?? 0),
             )

@@ -1,5 +1,6 @@
 import type { StockMovementType } from "@/features/movements/types/movement";
 import type { ProductUnit } from "@/features/products/types/product";
+import { hasAtMostDecimalPlaces } from "@/lib/utils/number";
 
 const precisionByUnit: Record<ProductUnit, number> = {
   unit: 1,
@@ -9,13 +10,9 @@ const precisionByUnit: Record<ProductUnit, number> = {
 };
 
 export function hasValidStockPrecision(value: number, unit: ProductUnit) {
-  const precision = precisionByUnit[unit];
-  const scaledValue = value * precision;
-
-  return (
-    Number.isFinite(value) &&
-    Math.abs(scaledValue - Math.round(scaledValue)) < 1e-9
-  );
+  return unit === "kilogram"
+    ? hasAtMostDecimalPlaces(value, 3)
+    : Number.isInteger(value);
 }
 
 export function normalizeStockQuantity(value: number, unit: ProductUnit) {

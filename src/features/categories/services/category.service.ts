@@ -14,7 +14,10 @@ import {
   where,
 } from "firebase/firestore";
 
-import type { CategorySchema } from "@/features/categories/schemas/category.schema";
+import {
+  categorySchema,
+  type CategorySchema,
+} from "@/features/categories/schemas/category.schema";
 import type { Category } from "@/features/categories/types/category";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import {
@@ -26,9 +29,13 @@ import {
 export { DataServiceError as CategoryServiceError };
 
 function mapCategory(id: string, data: Record<string, unknown>): Category {
+  if (typeof data.name !== "string" || !data.name.trim()) {
+    throw new TypeError("Categoria com nome inválido.");
+  }
+
   return {
     id,
-    name: String(data.name ?? ""),
+    name: data.name,
     createdAt: firestoreDateToIso(data.createdAt),
   };
 }
@@ -53,17 +60,22 @@ export async function createCategory(
   userId: string,
 ): Promise<Category> {
   try {
-    await ensureCategoryNameIsAvailable(input.name);
+    const parsedInput = categorySchema.parse(input);
+    const normalizedUserId = userId.trim();
+    if (!normalizedUserId) {
+      throw new DataServiceError("Sua sessão expirou. Entre novamente.");
+    }
+    await ensureCategoryNameIsAvailable(parsedInput.name);
     const reference = await addDoc(collection(getFirebaseDb(), "categories"), {
-      name: input.name,
-      nameNormalized: normalizeCategoryName(input.name),
-      createdBy: userId,
+      name: parsedInput.name,
+      nameNormalized: normalizeCategoryName(parsedInput.name),
+      createdBy: normalizedUserId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
     return {
       id: reference.id,
-      name: input.name,
+      name: parsedInput.name,
       createdAt: new Date().toISOString(),
     };
   } catch (error) {
@@ -80,10 +92,11 @@ export async function updateCategory(
   input: CategorySchema,
 ) {
   try {
-    await ensureCategoryNameIsAvailable(input.name, categoryId);
+    const parsedInput = categorySchema.parse(input);
+    await ensureCategoryNameIsAvailable(parsedInput.name, categoryId);
     await updateDoc(doc(getFirebaseDb(), "categories", categoryId), {
-      name: input.name,
-      nameNormalized: normalizeCategoryName(input.name),
+      name: parsedInput.name,
+      nameNormalized: normalizeCategoryName(parsedInput.name),
       updatedAt: serverTimestamp(),
     });
   } catch (error) {

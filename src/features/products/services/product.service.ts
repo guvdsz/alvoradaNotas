@@ -1,28 +1,33 @@
 "use client";
 
 import {
-  addDoc,
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
   limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
-  updateDoc,
   where,
 } from "firebase/firestore";
 
-import type { ProductSchema } from "@/features/products/schemas/product.schema";
-import { mapProduct } from "@/features/products/services/product.mapper";
+import {
+  productSchema,
+  type ProductSchema,
+} from "@/features/products/schemas/product.schema";
+import {
+  mapProduct,
+  readProductUnit,
+} from "@/features/products/services/product.mapper";
 import type { Product } from "@/features/products/types/product";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import {
   DataServiceError,
   handleDataServiceError,
 } from "@/lib/firebase/data-service";
+import { hasAtMostDecimalPlaces } from "@/lib/utils/number";
 
 export { DataServiceError as ProductServiceError };
 
@@ -52,19 +57,39 @@ export async function listProducts(): Promise<Product[]> {
 
 export async function createProduct(input: ProductSchema, userId: string) {
   try {
-    await ensureBarcodeIsAvailable(input.barcode);
+    const parsedInput = productSchema.parse(input);
+    const normalizedUserId = userId.trim();
+    if (!normalizedUserId) {
+      throw new DataServiceError("Sua sessão expirou. Entre novamente.");
+    }
+    await ensureBarcodeIsAvailable(parsedInput.barcode);
 
-    await addDoc(collection(getFirebaseDb(), "products"), {
-      name: input.name,
-      categoryId: input.categoryId,
-      unit: input.unit,
-      currentStock: 0,
-      minimumStock: input.minimumStock,
-      priceInCents: Math.round(input.price * 100),
-      barcode: input.barcode || null,
-      createdBy: userId,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+    const database = getFirebaseDb();
+    const productReference = doc(collection(database, "products"));
+    const categoryReference = doc(
+      database,
+      "categories",
+      parsedInput.categoryId,
+    );
+
+    await runTransaction(database, async (transaction) => {
+      const categorySnapshot = await transaction.get(categoryReference);
+      if (!categorySnapshot.exists()) {
+        throw new DataServiceError("Selecione uma categoria válida.");
+      }
+
+      transaction.set(productReference, {
+        name: parsedInput.name,
+        categoryId: parsedInput.categoryId,
+        unit: parsedInput.unit,
+        currentStock: 0,
+        minimumStock: parsedInput.minimumStock,
+        priceInCents: Math.round(parsedInput.price * 100),
+        barcode: parsedInput.barcode || null,
+        createdBy: normalizedUserId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
     });
   } catch (error) {
     handleDataServiceError("Produtos", error, "Não foi possível cadastrar o produto.");
@@ -98,15 +123,50 @@ export async function getProduct(productId: string): Promise<Product> {
 
 export async function updateProduct(productId: string, input: ProductSchema) {
   try {
-    await ensureBarcodeIsAvailable(input.barcode, productId);
-    await updateDoc(doc(getFirebaseDb(), "products", productId), {
-      name: input.name,
-      categoryId: input.categoryId,
-      unit: input.unit,
-      minimumStock: input.minimumStock,
-      priceInCents: Math.round(input.price * 100),
-      barcode: input.barcode || null,
-      updatedAt: serverTimestamp(),
+    const parsedInput = productSchema.parse(input);
+    await ensureBarcodeIsAvailable(parsedInput.barcode, productId);
+
+    const database = getFirebaseDb();
+    const productReference = doc(database, "products", productId);
+    const categoryReference = doc(
+      database,
+      "categories",
+      parsedInput.categoryId,
+    );
+
+    await runTransaction(database, async (transaction) => {
+      const [productSnapshot, categorySnapshot] = await Promise.all([
+        transaction.get(productReference),
+        transaction.get(categoryReference),
+      ]);
+
+      if (!productSnapshot.exists()) {
+        throw new DataServiceError("Produto não encontrado.");
+      }
+      if (!categorySnapshot.exists()) {
+        throw new DataServiceError("Selecione uma categoria válida.");
+      }
+
+      const currentUnit = readProductUnit(productSnapshot.data().unit);
+      const currentStock = readCurrentStock(
+        productSnapshot.data().currentStock,
+        currentUnit,
+      );
+      if (currentUnit !== parsedInput.unit && currentStock !== 0) {
+        throw new DataServiceError(
+          "A forma de controle só pode ser alterada quando a quantidade no estoque estiver zerada.",
+        );
+      }
+
+      transaction.update(productReference, {
+        name: parsedInput.name,
+        categoryId: parsedInput.categoryId,
+        unit: parsedInput.unit,
+        minimumStock: parsedInput.minimumStock,
+        priceInCents: Math.round(parsedInput.price * 100),
+        barcode: parsedInput.barcode || null,
+        updatedAt: serverTimestamp(),
+      });
     });
   } catch (error) {
     handleDataServiceError("Produtos", error, "Não foi possível atualizar o produto.");
@@ -115,7 +175,28 @@ export async function updateProduct(productId: string, input: ProductSchema) {
 
 export async function deleteProduct(productId: string) {
   try {
-    await deleteDoc(doc(getFirebaseDb(), "products", productId));
+    const database = getFirebaseDb();
+    const productReference = doc(database, "products", productId);
+
+    await runTransaction(database, async (transaction) => {
+      const productSnapshot = await transaction.get(productReference);
+      if (!productSnapshot.exists()) {
+        throw new DataServiceError("Produto não encontrado.");
+      }
+
+      const currentUnit = readProductUnit(productSnapshot.data().unit);
+      const currentStock = readCurrentStock(
+        productSnapshot.data().currentStock,
+        currentUnit,
+      );
+      if (currentStock !== 0) {
+        throw new DataServiceError(
+          "Zere a quantidade no estoque antes de excluir o produto.",
+        );
+      }
+
+      transaction.delete(productReference);
+    });
   } catch (error) {
     handleDataServiceError("Produtos", error, "Não foi possível excluir o produto.");
   }
@@ -141,4 +222,25 @@ async function ensureBarcodeIsAvailable(
       "Já existe um produto com esse código de barras.",
     );
   }
+}
+
+function readCurrentStock(
+  value: unknown,
+  unit: ReturnType<typeof readProductUnit>,
+) {
+  const stock = typeof value === "number" ? value : Number.NaN;
+  if (
+    Number.isFinite(stock) &&
+    stock >= 0 &&
+    stock <= 1_000_000_000 &&
+    (unit === "kilogram"
+      ? hasAtMostDecimalPlaces(stock, 3)
+      : Number.isInteger(stock))
+  ) {
+    return stock;
+  }
+
+  throw new DataServiceError(
+    "A quantidade atual deste produto é inválida.",
+  );
 }

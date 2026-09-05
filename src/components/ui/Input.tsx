@@ -25,7 +25,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       {label && (
         <label
           htmlFor={inputId}
-          className="text-sm font-semibold text-stone-700"
+          className="text-sm font-semibold text-stone-800"
         >
           {label}
         </label>
@@ -33,7 +33,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 
       <div className="relative">
         {icon && (
-          <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-stone-400">
+          <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-stone-500">
             {icon}
           </span>
         )}
@@ -44,11 +44,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           aria-invalid={Boolean(error)}
           aria-describedby={error || helperText ? descriptionId : undefined}
           className={cn(
-            "h-12 w-full rounded-xl border bg-white px-3.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-brand-400 focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-500",
+            "h-12 w-full rounded-xl border bg-white px-3.5 text-base text-stone-900 outline-none transition placeholder:text-stone-500 focus:border-brand-700 focus:ring-2 focus:ring-brand-200 disabled:cursor-not-allowed disabled:border-stone-300 disabled:bg-stone-100 disabled:text-stone-500 sm:text-sm",
             icon && "pl-11",
             error
-              ? "border-red-300 focus:border-red-400 focus:ring-red-100"
-              : "border-stone-200",
+              ? "border-red-600 focus:border-red-700 focus:ring-red-200"
+              : "border-stone-500",
             className,
           )}
           {...props}
